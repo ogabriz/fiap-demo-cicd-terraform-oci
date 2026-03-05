@@ -1,1 +1,3 @@
-variable "compartment_id" {}
+variable "compartment_id" {
+  type = string
+}

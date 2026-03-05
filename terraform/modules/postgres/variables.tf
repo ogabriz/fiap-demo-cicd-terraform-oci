@@ -1,2 +1,4 @@
-variable "compartment_id" {}
-variable "availability_domain" {}
+variable "availability_domain" {
+  description = "Availability Domain"
+  type        = string
+}

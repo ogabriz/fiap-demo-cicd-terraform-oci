@@ -7,7 +7,7 @@
 #
 # Para outros ambientes, crie: staging.tfvars, prod.tfvars
 # ============================================================================
-
+tenancy_ocid = "ocid1.tenancy.oc1...."
 # --- Projeto ---
 project_name = "fiap-demo-oci"
 environment  = "dev"

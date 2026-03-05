@@ -1,1 +1,0 @@
-variable "compartment_id" {}
