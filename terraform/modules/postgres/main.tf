@@ -4,7 +4,7 @@ resource "oci_core_instance" "postgres" {
   compartment_id      = var.compartment_id
   display_name        = "postgres-instance"
 
-  shape = "VM.Standard.E2.1.Micro"
+  shape = "VM.Standard.A1.Flex"
 
   create_vnic_details {
     subnet_id        = var.subnet_id
