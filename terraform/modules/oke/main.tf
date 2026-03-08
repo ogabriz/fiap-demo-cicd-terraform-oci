@@ -7,7 +7,7 @@ data "oci_containerengine_node_pool_option" "node_pool_options" {
 resource "oci_containerengine_cluster" "main" {
 
   compartment_id     = var.compartment_id
-  kubernetes_version = "v1.31.1"
+  kubernetes_version = "v1.34.2"
 
   name = "togglemaster-oke"
 
