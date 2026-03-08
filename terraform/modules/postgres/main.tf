@@ -6,6 +6,11 @@ resource "oci_core_instance" "postgres" {
 
   shape = "VM.Standard.A1.Flex"
 
+  shape_config {
+    ocpus         = 1
+    memory_in_gbs = 6
+  }
+
   create_vnic_details {
     subnet_id        = var.subnet_id
     assign_public_ip = true
