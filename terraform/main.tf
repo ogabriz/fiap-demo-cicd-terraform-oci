@@ -12,5 +12,5 @@ module "nosql" {
   source = "./modules/nosql"
 
   compartment_id = var.compartment_id
-  table_name     = "fiap-hackaton-table"
+  table_name     = "togglemaster_table"
 }
