@@ -32,3 +32,9 @@ module "redis" {
   ssh_public_key = var.ssh_public_key
   image_id       = var.image_id
 }
+
+module "queue" {
+  source = "./modules/queue"
+
+  compartment_id = var.compartment_id
+}
