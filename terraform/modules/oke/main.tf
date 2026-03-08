@@ -1,3 +1,9 @@
+# DATA SOURCE (fica no topo do arquivo)
+data "oci_containerengine_node_pool_option" "node_pool_options" {
+  node_pool_option_id = "all"
+  compartment_id      = var.compartment_id
+}
+
 resource "oci_containerengine_cluster" "main" {
 
   compartment_id     = var.compartment_id
@@ -20,6 +26,8 @@ resource "oci_containerengine_cluster" "main" {
     ]
 
   }
+
+
 }
 
 resource "oci_containerengine_node_pool" "pool" {
@@ -49,5 +57,10 @@ resource "oci_containerengine_node_pool" "pool" {
     ocpus         = 1
     memory_in_gbs = 6
   }
+
+node_source_details {
+  source_type = "IMAGE"
+  image_id    = data.oci_containerengine_node_pool_option.node_pool_options.sources[0].image_id
+}
 
 }
