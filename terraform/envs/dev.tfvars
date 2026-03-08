@@ -4,3 +4,7 @@ compartment_id = "ocid1.compartment.oc1..aaaaaaaanehxovyxoaobjbxqhbgdcubarphs5xu
 ssh_public_key = "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDNGveJEA3GUgIySb1t4STydxCnQnnz3sWsQrOeTHKVW6x1fIDpwRCZplM0p8ps5hzjbQ740kqObAAy5+JCiNCMFghNupUZUAOI4ECihfo+ddR6qMCufWN521VDuOQR7jb9R8yR32qSK5W39tPWTkdrikKyrDt+lggXDcZ/xDoUd+HR4AavGeIVP782AvzHCK90L2XnV4ge9iQQk8IOEv71HVbBDDURgGE+WpPlUe8DwPUslnY0zSXejml+L2zcU+psoxGBGmf5lTe5/KgjAN2OOyPH/VVMMXQ8tWIKq62j+8Uiz4eI2+muVABPfjdwcj34iwMtDWJSqaaWUbFFQ2eD ealve@junior"
 
 image_id = "ocid1.image.oc1.sa-saopaulo-1.aaaaaaaaorwookw5jedamdpxwgmrrugtaj43udmeqwcmtgvswwuu2ee4mloa"
+
+availability_domain = "Uocm:SA-SAOPAULO-1-AD-1"
+
+oke_image = "ocid1.image.oc1.sa-saopaulo-1.aaaaaaaaorwookw5jedamdpxwgmrrugtaj43udmeqwcmtgvswwuu2ee4mloa"

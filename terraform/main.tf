@@ -38,3 +38,14 @@ module "queue" {
 
   compartment_id = var.compartment_id
 }
+
+module "oke" {
+
+  source = "./modules/oke"
+
+  compartment_id      = var.compartment_id
+  vcn_id              = module.networking.vcn_id
+  subnet_id           = module.networking.workers_subnet_id
+  availability_domain = var.availability_domain
+  node_image          = var.oke_image
+}
