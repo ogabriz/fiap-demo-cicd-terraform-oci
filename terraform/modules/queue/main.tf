@@ -6,6 +6,6 @@ resource "oci_queue_queue" "main" {
   visibility_in_seconds = 30
   timeout_in_seconds    = 30
 
-  retention_in_seconds  = 1209600
+  retention_in_seconds  = 604800
 
 }
