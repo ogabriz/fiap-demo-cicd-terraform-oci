@@ -31,7 +31,7 @@ resource "oci_containerengine_cluster" "main" {
 
   endpoint_config {
     is_public_ip_enabled = true
-    subnet_id            = var.subnet_id
+    subnet_id            = var.lb_subnet_id
   }
 
   options {
@@ -70,6 +70,11 @@ resource "oci_containerengine_node_pool" "pool" {
   node_shape_config {
     ocpus         = 1
     memory_in_gbs = 6
+  }
+
+  node_source_details {
+    source_type = "IMAGE"
+    image_id    = data.oci_containerengine_node_pool_option.node_pool_options.sources[0].image_id
   }
 
   depends_on = [
