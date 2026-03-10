@@ -21,7 +21,7 @@ resource "oci_containerengine_cluster" "main" {
   name           = "togglemaster-oke"
 
   vcn_id = var.vcn_id
-  kubernetes_version = "v1.31.1"
+  kubernetes_version = "v1.34.2"
 
   lifecycle {
     ignore_changes = [
