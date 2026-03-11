@@ -25,12 +25,13 @@ resource "oci_core_route_table" "public_rt" {
   }
 }
 
-# Security List liberando SSH
+# Security List
 resource "oci_core_security_list" "public_sl" {
   compartment_id = var.compartment_id
   vcn_id         = oci_core_vcn.main.id
   display_name   = "public-security-list"
 
+  # SSH acesso externo
   ingress_security_rules {
 
     protocol = "6" # TCP
@@ -43,6 +44,16 @@ resource "oci_core_security_list" "public_sl" {
     }
   }
 
+  # Comunicação interna da VCN (necessário para OKE)
+  ingress_security_rules {
+
+    protocol = "all"
+
+    source = "10.0.0.0/16"
+
+  }
+
+  # Saída liberada para internet
   egress_security_rules {
     protocol    = "all"
     destination = "0.0.0.0/0"
@@ -77,16 +88,30 @@ resource "oci_core_subnet" "db" {
   ]
 }
 
+# Subnet OKE Nodes
 resource "oci_core_subnet" "oke_nodes" {
   compartment_id = var.compartment_id
   vcn_id         = oci_core_vcn.main.id
   cidr_block     = "10.0.10.0/24"
   display_name   = "oke-nodes-subnet"
+
+  route_table_id = oci_core_route_table.public_rt.id
+
+  security_list_ids = [
+    oci_core_security_list.public_sl.id
+  ]
 }
 
+# Subnet OKE Load Balancer
 resource "oci_core_subnet" "oke_lb" {
   compartment_id = var.compartment_id
   vcn_id         = oci_core_vcn.main.id
   cidr_block     = "10.0.20.0/24"
   display_name   = "oke-lb-subnet"
+
+  route_table_id = oci_core_route_table.public_rt.id
+
+  security_list_ids = [
+    oci_core_security_list.public_sl.id
+  ]
 }
