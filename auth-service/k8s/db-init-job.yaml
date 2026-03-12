@@ -1,0 +1,56 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: auth-db-init
+  namespace: togglemaster
+  labels:
+    app: auth-service
+    component: db-init
+spec:
+  template:
+    spec:
+      containers:
+        - name: db-init
+          image: postgres:16-alpine
+          command: ["psql"]
+          args:
+            - "$(DATABASE_URL)"
+            - "-f"
+            - "/scripts/init.sql"
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: auth-service-secret
+                  key: DATABASE_URL
+          volumeMounts:
+            - name: init-scripts
+              mountPath: /scripts
+      volumes:
+        - name: init-scripts
+          configMap:
+            name: auth-db-init-scripts
+      restartPolicy: Never
+  backoffLimit: 3
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: auth-db-init-scripts
+  namespace: togglemaster
+  labels:
+    app: auth-service
+    component: db-init
+data:
+  init.sql: |
+    CREATE TABLE IF NOT EXISTS api_keys (
+        id SERIAL PRIMARY KEY,
+        name VARCHAR(255) NOT NULL,
+        key_hash VARCHAR(255) NOT NULL UNIQUE,
+        key_prefix VARCHAR(20) NOT NULL,
+        is_active BOOLEAN DEFAULT TRUE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        last_used_at TIMESTAMP
+    );
+    CREATE INDEX IF NOT EXISTS idx_api_keys_key_hash ON api_keys(key_hash);
+    CREATE INDEX IF NOT EXISTS idx_api_keys_is_active ON api_keys(is_active);
