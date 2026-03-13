@@ -1,0 +1,54 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: flag-db-init
+  namespace: togglemaster
+  labels:
+    app: flag-service
+    component: db-init
+spec:
+  template:
+    spec:
+      containers:
+        - name: db-init
+          image: postgres:16-alpine
+          command: ["psql"]
+          args:
+            - "$(DATABASE_URL)"
+            - "-f"
+            - "/scripts/init.sql"
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: flag-service-secret
+                  key: DATABASE_URL
+          volumeMounts:
+            - name: init-scripts
+              mountPath: /scripts
+      volumes:
+        - name: init-scripts
+          configMap:
+            name: flag-db-init-scripts
+      restartPolicy: Never
+  backoffLimit: 3
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: flag-db-init-scripts
+  namespace: togglemaster
+  labels:
+    app: flag-service
+    component: db-init
+data:
+  init.sql: |
+    CREATE TABLE IF NOT EXISTS flags (
+        id SERIAL PRIMARY KEY,
+        name VARCHAR(255) NOT NULL UNIQUE,
+        description TEXT,
+        is_enabled BOOLEAN DEFAULT FALSE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE INDEX IF NOT EXISTS idx_flags_name ON flags(name);

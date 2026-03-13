@@ -1,14 +1,14 @@
-name: "Auth Service - Build & Deploy"
+name: "Targeting Service - Build & Deploy"
 
 on:
   push:
     branches: [main]
     paths:
-      - "auth-service/**"
+      - "targeting-service/**"
   workflow_dispatch:
 
 env:
-  SERVICE_NAME: auth-service
+  SERVICE_NAME: targeting-service
   OCI_REGION: ${{ secrets.OCI_REGION }}
 
 jobs:
@@ -56,11 +56,11 @@ jobs:
       - name: Validate OCIR secrets
         run: |
           if [ -z "${{ secrets.OCI_AUTH_TOKEN }}" ]; then
-            echo "::error::OCI_AUTH_TOKEN secret is not configured. Go to OCI Console -> User Settings -> Auth Tokens -> Generate Token, then add it as a GitHub Secret."
+            echo "::error::OCI_AUTH_TOKEN secret is not configured."
             exit 1
           fi
           if [ -z "${{ secrets.OCI_USERNAME }}" ]; then
-            echo "::error::OCI_USERNAME secret is not configured. Add your OCI username (email) as a GitHub Secret."
+            echo "::error::OCI_USERNAME secret is not configured."
             exit 1
           fi
 
@@ -78,7 +78,7 @@ jobs:
           docker build \
             -t ${IMAGE}:${TAG} \
             -t ${IMAGE}:latest \
-            ./auth-service
+            ./targeting-service
 
           docker push ${IMAGE}:${TAG}
           docker push ${IMAGE}:latest
@@ -157,7 +157,7 @@ jobs:
         run: |
           NAMESPACE=${{ steps.oci-ns.outputs.namespace }}
           IMAGE="${{ env.OCI_REGION }}.ocir.io/${NAMESPACE}/togglemaster/${{ env.SERVICE_NAME }}:${{ github.sha }}"
-          sed -i "s|REGION.ocir.io/NAMESPACE/togglemaster/auth-service:latest|${IMAGE}|g" auth-service/k8s/deployment.yaml
+          sed -i "s|REGION.ocir.io/NAMESPACE/togglemaster/targeting-service:latest|${IMAGE}|g" targeting-service/k8s/deployment.yaml
 
       - name: Create OCIR Pull Secret
         run: |
@@ -172,19 +172,19 @@ jobs:
 
       - name: Deploy to OKE
         run: |
-          kubectl apply -f auth-service/k8s/namespace.yaml
-          kubectl apply -f auth-service/k8s/secret.yaml
-          kubectl delete job auth-db-init -n togglemaster --ignore-not-found
-          kubectl apply -f auth-service/k8s/db-init-job.yaml
-          kubectl apply -f auth-service/k8s/deployment.yaml
-          kubectl apply -f auth-service/k8s/service.yaml
+          kubectl apply -f targeting-service/k8s/namespace.yaml
+          kubectl apply -f targeting-service/k8s/secret.yaml
+          kubectl delete job targeting-db-init -n togglemaster --ignore-not-found
+          kubectl apply -f targeting-service/k8s/db-init-job.yaml
+          kubectl apply -f targeting-service/k8s/deployment.yaml
+          kubectl apply -f targeting-service/k8s/service.yaml
 
       - name: Wait for Rollout
         run: |
-          kubectl rollout status deployment/auth-service -n togglemaster --timeout=120s
+          kubectl rollout status deployment/targeting-service -n togglemaster --timeout=120s
 
       - name: Get Service URL
         run: |
           echo "### Deployment Successful" >> $GITHUB_STEP_SUMMARY
-          echo "Waiting for LoadBalancer IP..." >> $GITHUB_STEP_SUMMARY
-          kubectl get svc auth-service -n togglemaster -o wide
+          echo "Waiting for Service IP..." >> $GITHUB_STEP_SUMMARY
+          kubectl get svc targeting-service -n togglemaster -o wide

@@ -1,0 +1,54 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: targeting-db-init
+  namespace: togglemaster
+  labels:
+    app: targeting-service
+    component: db-init
+spec:
+  template:
+    spec:
+      containers:
+        - name: db-init
+          image: postgres:16-alpine
+          command: ["psql"]
+          args:
+            - "$(DATABASE_URL)"
+            - "-f"
+            - "/scripts/init.sql"
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: targeting-service-secret
+                  key: DATABASE_URL
+          volumeMounts:
+            - name: init-scripts
+              mountPath: /scripts
+      volumes:
+        - name: init-scripts
+          configMap:
+            name: targeting-db-init-scripts
+      restartPolicy: Never
+  backoffLimit: 3
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: targeting-db-init-scripts
+  namespace: togglemaster
+  labels:
+    app: targeting-service
+    component: db-init
+data:
+  init.sql: |
+    CREATE TABLE IF NOT EXISTS targeting_rules (
+        id SERIAL PRIMARY KEY,
+        flag_name VARCHAR(255) NOT NULL UNIQUE,
+        is_enabled BOOLEAN DEFAULT TRUE,
+        rules JSONB NOT NULL DEFAULT '{}',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE INDEX IF NOT EXISTS idx_targeting_rules_flag_name ON targeting_rules(flag_name);
