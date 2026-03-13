@@ -44,6 +44,45 @@ resource "oci_core_security_list" "public_sl" {
     }
   }
 
+  # Kubernetes API server (necessário para kubectl externo / GitHub Actions)
+  ingress_security_rules {
+
+    protocol = "6" # TCP
+
+    source = "0.0.0.0/0"
+
+    tcp_options {
+      min = 6443
+      max = 6443
+    }
+  }
+
+  # HTTP para Load Balancer
+  ingress_security_rules {
+
+    protocol = "6" # TCP
+
+    source = "0.0.0.0/0"
+
+    tcp_options {
+      min = 80
+      max = 80
+    }
+  }
+
+  # HTTPS para Load Balancer
+  ingress_security_rules {
+
+    protocol = "6" # TCP
+
+    source = "0.0.0.0/0"
+
+    tcp_options {
+      min = 443
+      max = 443
+    }
+  }
+
   # Comunicação interna da VCN (necessário para OKE)
   ingress_security_rules {
 
