@@ -66,10 +66,23 @@ func main() {
 	db.SetMaxIdleConns(5)
 	db.SetConnMaxLifetime(5 * time.Minute)
 
-	if err := db.Ping(); err != nil {
-		log.Fatalf("Failed to ping database: %v", err)
+	// Tentar conectar ao banco com retry
+	maxRetries := 10
+	var lastErr error
+	for i := 0; i < maxRetries; i++ {
+		err = db.Ping()
+		if err == nil {
+			log.Println("Connected to database successfully")
+			break
+		}
+		lastErr = err
+		log.Printf("Waiting for database... (%d/%d): %v", i+1, maxRetries, err)
+		time.Sleep(5 * time.Second)
 	}
-	log.Println("Connected to database successfully")
+
+	if lastErr != nil && err != nil {
+		log.Fatalf("Failed to ping database after %d attempts: %v", maxRetries, lastErr)
+	}
 
 	mux := http.NewServeMux()
 
