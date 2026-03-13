@@ -6,22 +6,52 @@ packages:
 
 runcmd:
 
+  # Inicializar PostgreSQL principal
   - sudo postgresql-setup --initdb
 
+  # Habilitar acesso remoto
+  - sudo sed -i "s/#listen_addresses = 'localhost'/listen_addresses = '*'/" /var/lib/pgsql/data/postgresql.conf
+
+  # Liberar acesso da subnet do OKE
+  - echo "host all all 10.0.10.0/24 md5" | sudo tee -a /var/lib/pgsql/data/pg_hba.conf
+
+  # Iniciar serviço
   - sudo systemctl enable postgresql
   - sudo systemctl start postgresql
 
+  # Criar usuário e bancos
+  - sudo -u postgres psql -c "CREATE USER togglemaster_user WITH PASSWORD 'togglepass123';"
+
+  - sudo -u postgres psql -c "CREATE DATABASE auth_db OWNER togglemaster_user;"
+  - sudo -u postgres psql -c "CREATE DATABASE flags_db OWNER togglemaster_user;"
+  - sudo -u postgres psql -c "CREATE DATABASE targeting_db OWNER togglemaster_user;"
+
+  - sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE auth_db TO togglemaster_user;"
+  - sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE flags_db TO togglemaster_user;"
+  - sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE targeting_db TO togglemaster_user;"
+
+  # Criar diretórios das outras instâncias
   - sudo mkdir -p /var/lib/pgsql/14/data2
   - sudo mkdir -p /var/lib/pgsql/14/data3
 
   - sudo chown -R postgres:postgres /var/lib/pgsql/14/data2
   - sudo chown -R postgres:postgres /var/lib/pgsql/14/data3
 
+  # Inicializar instâncias adicionais
   - sudo -u postgres /usr/bin/initdb -D /var/lib/pgsql/14/data2
   - sudo -u postgres /usr/bin/initdb -D /var/lib/pgsql/14/data3
 
+  # Configurar portas
   - echo "port=5433" | sudo tee -a /var/lib/pgsql/14/data2/postgresql.conf
   - echo "port=5434" | sudo tee -a /var/lib/pgsql/14/data3/postgresql.conf
 
+  # Liberar acesso remoto nelas também
+  - sudo sed -i "s/#listen_addresses = 'localhost'/listen_addresses = '*'/" /var/lib/pgsql/14/data2/postgresql.conf
+  - sudo sed -i "s/#listen_addresses = 'localhost'/listen_addresses = '*'/" /var/lib/pgsql/14/data3/postgresql.conf
+
+  - echo "host all all 10.0.10.0/24 md5" | sudo tee -a /var/lib/pgsql/14/data2/pg_hba.conf
+  - echo "host all all 10.0.10.0/24 md5" | sudo tee -a /var/lib/pgsql/14/data3/pg_hba.conf
+
+  # Iniciar instâncias adicionais
   - sudo -u postgres pg_ctl -D /var/lib/pgsql/14/data2 -l logfile start
   - sudo -u postgres pg_ctl -D /var/lib/pgsql/14/data3 -l logfile start
