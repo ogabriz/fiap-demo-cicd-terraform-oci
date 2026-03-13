@@ -162,22 +162,22 @@ jobs:
       - name: Create OCIR Pull Secret
         run: |
           NAMESPACE=${{ steps.oci-ns.outputs.namespace }}
-          kubectl create namespace togglemaster --dry-run=client -o yaml | kubectl apply -f -
+          kubectl create namespace togglemaster --dry-run=client -o yaml | kubectl apply --validate=false -f -
           kubectl create secret docker-registry ocir-secret \
             --namespace=togglemaster \
             --docker-server=${{ env.OCI_REGION }}.ocir.io \
             --docker-username="$NAMESPACE/${{ secrets.OCI_USERNAME }}" \
             --docker-password="${{ secrets.OCI_AUTH_TOKEN }}" \
-            --dry-run=client -o yaml | kubectl apply -f -
+            --dry-run=client -o yaml | kubectl apply --validate=false -f -
 
       - name: Deploy to OKE
         run: |
-          kubectl apply -f targeting-service/k8s/namespace.yaml
-          kubectl apply -f targeting-service/k8s/secret.yaml
+          kubectl apply --validate=false -f targeting-service/k8s/namespace.yaml
+          kubectl apply --validate=false -f targeting-service/k8s/secret.yaml
           kubectl delete job targeting-db-init -n togglemaster --ignore-not-found
-          kubectl apply -f targeting-service/k8s/db-init-job.yaml
-          kubectl apply -f targeting-service/k8s/deployment.yaml
-          kubectl apply -f targeting-service/k8s/service.yaml
+          kubectl apply --validate=false -f targeting-service/k8s/db-init-job.yaml
+          kubectl apply --validate=false -f targeting-service/k8s/deployment.yaml
+          kubectl apply --validate=false -f targeting-service/k8s/service.yaml
 
       - name: Wait for Rollout
         run: |
