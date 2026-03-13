@@ -20,6 +20,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
+      - name: Set up QEMU (for ARM64 cross-build)
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
 
@@ -69,19 +74,18 @@ jobs:
           NAMESPACE=${{ steps.oci-ns.outputs.namespace }}
           echo "${{ secrets.OCI_AUTH_TOKEN }}" | docker login ${{ env.OCI_REGION }}.ocir.io -u "$NAMESPACE/${{ secrets.OCI_USERNAME }}" --password-stdin
 
-      - name: Build and Push Docker image
+      - name: Build and Push Docker image (ARM64)
         run: |
           NAMESPACE=${{ steps.oci-ns.outputs.namespace }}
           IMAGE="${{ env.OCI_REGION }}.ocir.io/${NAMESPACE}/togglemaster/${{ env.SERVICE_NAME }}"
           TAG="${{ github.sha }}"
 
-          docker build \
+          docker buildx build \
+            --platform linux/arm64 \
             -t ${IMAGE}:${TAG} \
             -t ${IMAGE}:latest \
+            --push \
             ./flag-service
-
-          docker push ${IMAGE}:${TAG}
-          docker push ${IMAGE}:latest
 
       - name: Summary
         run: |
