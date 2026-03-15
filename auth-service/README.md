@@ -40,15 +40,29 @@ Servico de autenticacao do projeto ToggleMaster. Responsavel por criar e validar
 
 ### Testando os Endpoints
 
-Você pode testar os endpoints de duas formas:
+Você pode testar os endpoints de várias formas:
 
-1. **REST Client (VS Code):** Use o arquivo `tests/api-tests.http` na raiz do projeto.
-2. **Script Shell:** Use o script `scripts/test-services.sh <IP_DO_LB>`.
+1. **REST Client (VS Code):** Use o arquivo `tests/api-tests.http` na raiz do projeto. Basta clicar em "Send Request" acima de cada endpoint.
+2. **Script Python Automatizado:** Use o script `tests/smoke_test.py`. Ele testa todo o fluxo: Health -> DB Health -> Gerar Chave -> Validar Chave.
+   ```bash
+   # Configure a URL e a Master Key (opcional, defaults: localhost:8001 e mymasterkey)
+   export AUTH_SERVICE_URL=http://<IP_DO_LB>:8001
+   export MASTER_KEY=mymasterkey
+   python tests/smoke_test.py
+   ```
+3. **Script Shell:** Use o script `scripts/test-services.sh <IP_DO_LB>`.
+4. **Testes Unitários (Go):** Para testar a lógica interna sem precisar do servidor rodando:
+   ```bash
+   cd auth-service
+   go test -v
+   ```
 
-Exemplo via curl:
+Exemplo via curl para gerar chave:
 ```bash
-# Health DB
-curl http://<IP_DO_LB>:8001/health/db
+curl -X POST http://<IP_DO_LB>:8001/admin/keys \
+  -H "Authorization: Bearer mymasterkey" \
+  -H "Content-Type: application/json" \
+  -d '{"name": "Nova Chave"}'
 ```
 
 ## Deploy no OKE

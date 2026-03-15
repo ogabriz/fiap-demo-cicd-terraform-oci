@@ -84,6 +84,11 @@ func main() {
 		log.Fatalf("Failed to ping database after %d attempts: %v", maxRetries, lastErr)
 	}
 
+	// Inicializar tabelas
+	if err := initDatabase(db); err != nil {
+		log.Fatalf("Failed to initialize database: %v", err)
+	}
+
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("/health", healthHandler)
@@ -95,6 +100,32 @@ func main() {
 	if err := http.ListenAndServe(":"+port, mux); err != nil {
 		log.Fatalf("Failed to start server: %v", err)
 	}
+}
+
+func initDatabase(db *sql.DB) error {
+	log.Println("Initializing database schema...")
+	
+	schema := `
+    CREATE TABLE IF NOT EXISTS api_keys (
+        id SERIAL PRIMARY KEY,
+        name VARCHAR(255) NOT NULL,
+        key_hash VARCHAR(255) NOT NULL UNIQUE,
+        key_prefix VARCHAR(20) NOT NULL,
+        is_active BOOLEAN DEFAULT TRUE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        last_used_at TIMESTAMP
+    );
+    CREATE INDEX IF NOT EXISTS idx_api_keys_key_hash ON api_keys(key_hash);
+    CREATE INDEX IF NOT EXISTS idx_api_keys_is_active ON api_keys(is_active);
+    `
+
+	_, err := db.Exec(schema)
+	if err != nil {
+		return fmt.Errorf("failed to execute schema: %w", err)
+	}
+
+	log.Println("Database schema initialized successfully")
+	return nil
 }
 
 func healthHandler(w http.ResponseWriter, r *http.Request) {
