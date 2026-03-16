@@ -20,8 +20,28 @@ def get_db_connection():
 def health():
     return jsonify({"status": "ok", "service": "flag-service"})
 
+def validate_token():
+    auth_header = request.headers.get('Authorization')
+    if not auth_header:
+        return False
+    
+    try:
+        # Chama o auth-service para validar o token
+        response = requests.get(
+            f"{AUTH_SERVICE_URL}/validate",
+            headers={"Authorization": auth_header},
+            timeout=5
+        )
+        return response.status_code == 200
+    except Exception as e:
+        print(f"Error validating token: {e}")
+        return False
+
 @app.route('/flags', methods=['GET'])
 def get_flags():
+    if not validate_token():
+        return jsonify({"error": "Unauthorized"}), 401
+    
     # Placeholder para demo
     return jsonify([
         {"id": 1, "name": "new-feature", "enabled": True},

@@ -6,7 +6,7 @@ metadata:
   labels:
     app: analytics-service
 spec:
-  type: ClusterIP
+  type: LoadBalancer
   selector:
     app: analytics-service
   ports:
