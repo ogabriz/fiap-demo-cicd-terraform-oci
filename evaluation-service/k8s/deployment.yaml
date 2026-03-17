@@ -6,7 +6,7 @@ metadata:
   labels:
     app: evaluation-service
 spec:
-  replicas: 2
+  replicas: 1
   selector:
     matchLabels:
       app: evaluation-service
@@ -58,10 +58,10 @@ spec:
                   key: AWS_REGION
           resources:
             requests:
-              cpu: 100m
+              cpu: 50m
               memory: 64Mi
             limits:
-              cpu: 250m
+              cpu: 100m
               memory: 128Mi
           livenessProbe:
             httpGet:
