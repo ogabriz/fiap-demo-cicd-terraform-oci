@@ -28,6 +28,38 @@ if not DATABASE_URL or not AUTH_SERVICE_URL:
     sys.exit(1)
 
 # --- Pool de Conexão com o Banco ---
+def init_db():
+    """ Inicializa o banco de dados e cria as tabelas necessárias """
+    conn = None
+    try:
+        conn = psycopg2.connect(DATABASE_URL)
+        cur = conn.cursor()
+        
+        # Cria a tabela de regras se não existir
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS targeting_rules (
+                id SERIAL PRIMARY KEY,
+                flag_name VARCHAR(255) NOT NULL UNIQUE,
+                is_enabled BOOLEAN DEFAULT TRUE,
+                rules JSONB NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+            CREATE INDEX IF NOT EXISTS idx_targeting_rules_flag_name ON targeting_rules(flag_name);
+        """)
+        
+        conn.commit()
+        cur.close()
+        log.info("Banco de dados (targeting) inicializado com sucesso.")
+    except Exception as e:
+        log.error(f"Erro ao inicializar o banco de dados (targeting): {e}")
+        if conn: conn.rollback()
+    finally:
+        if conn: conn.close()
+
+# Inicializa o banco de dados ao carregar o app
+init_db()
+
 try:
     pool = SimpleConnectionPool(1, 5, dsn=DATABASE_URL)
     log.info("Pool de conexões com o PostgreSQL (targeting) inicializado.")
