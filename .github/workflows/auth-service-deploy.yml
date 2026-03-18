@@ -18,15 +18,13 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
 
-      - name: Set up QEMU (for ARM64 cross-build)
+      - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
-        with:
-          platforms: arm64
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v4
+        uses: docker/setup-buildx-action@v3
 
       - name: Configure OCI Credentials
         run: |
@@ -41,10 +39,8 @@ jobs:
           tenancy=${{ secrets.OCI_TENANCY_OCID }}
           region=${{ secrets.OCI_REGION }}
           key_file=/home/runner/.oci/oci_api_key.pem
-
           EOF
 
-          sed -i 's/^[[:space:]]*//' ~/.oci/config
           chmod 600 ~/.oci/config
 
       - name: Install OCI CLI
@@ -55,54 +51,69 @@ jobs:
       - name: Get OCI namespace
         id: oci-ns
         run: |
-          NAMESPACE=$($HOME/bin/oci os ns get --query 'data' --raw-output)
+          NAMESPACE=$(oci os ns get --query 'data' --raw-output)
           echo "namespace=$NAMESPACE" >> $GITHUB_OUTPUT
-
-      - name: Validate OCIR secrets
-        run: |
-          if [ -z "${{ secrets.OCI_AUTH_TOKEN }}" ]; then
-            echo "::error::OCI_AUTH_TOKEN secret is not configured. Go to OCI Console -> User Settings -> Auth Tokens -> Generate Token, then add it as a GitHub Secret."
-            exit 1
-          fi
-          if [ -z "${{ secrets.OCI_USERNAME }}" ]; then
-            echo "::error::OCI_USERNAME secret is not configured. Add your OCI username (email) as a GitHub Secret."
-            exit 1
-          fi
 
       - name: Login to OCIR
         run: |
           NAMESPACE=${{ steps.oci-ns.outputs.namespace }}
-          echo "${{ secrets.OCI_AUTH_TOKEN }}" | docker login ${{ env.OCI_REGION }}.ocir.io -u "$NAMESPACE/${{ secrets.OCI_USERNAME }}" --password-stdin
+          echo "${{ secrets.OCI_AUTH_TOKEN }}" | docker login ${{ env.OCI_REGION }}.ocir.io \
+            -u "$NAMESPACE/${{ secrets.OCI_USERNAME }}" \
+            --password-stdin
 
-      - name: Build and Push Docker image (ARM64)
+      - name: Build and Push Docker image (multi-arch)
         run: |
           NAMESPACE=${{ steps.oci-ns.outputs.namespace }}
           IMAGE="${{ env.OCI_REGION }}.ocir.io/${NAMESPACE}/togglemaster/${{ env.SERVICE_NAME }}"
           TAG="${{ github.sha }}"
 
           docker buildx build \
-            --platform linux/arm64 \
+            --platform linux/amd64,linux/arm64 \
             -t ${IMAGE}:${TAG} \
             -t ${IMAGE}:latest \
             --push \
             ./auth-service
 
+      - name: Cleanup old images (keep last 5)
+        run: |
+          COMPARTMENT_ID=${{ secrets.OCI_COMPARTMENT_ID }}
+          REGION=${{ env.OCI_REGION }}
+          REPO="togglemaster/${{ env.SERVICE_NAME }}"
+
+          echo "🧹 Cleaning old images..."
+
+          oci artifacts container image list \
+            --compartment-id $COMPARTMENT_ID \
+            --repository-name $REPO \
+            --region $REGION \
+            --query "data.items | sort_by(@, &\"time-created\") | reverse(@) | [5:].id" \
+            --raw-output | tr -d '[]",' | tr ' ' '\n' | while read image; do
+
+              [ -z "$image" ] && continue
+
+              echo "🗑️ Deleting old image: $image"
+
+              oci artifacts container image delete \
+                --image-id "$image" \
+                --force \
+                --region $REGION
+          done
+
       - name: Summary
         run: |
           NAMESPACE=${{ steps.oci-ns.outputs.namespace }}
           echo "### Docker Image Pushed" >> $GITHUB_STEP_SUMMARY
-          echo "- **Image:** ${{ env.OCI_REGION }}.ocir.io/${NAMESPACE}/togglemaster/${{ env.SERVICE_NAME }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Tag:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Image: ${{ env.OCI_REGION }}.ocir.io/${NAMESPACE}/togglemaster/${{ env.SERVICE_NAME }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Tag: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
 
   deploy:
     name: "Deploy to OKE"
     runs-on: ubuntu-latest
     needs: build-and-push
-    environment: dev
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
 
       - name: Configure OCI Credentials
         run: |
@@ -117,10 +128,8 @@ jobs:
           tenancy=${{ secrets.OCI_TENANCY_OCID }}
           region=${{ secrets.OCI_REGION }}
           key_file=/home/runner/.oci/oci_api_key.pem
-
           EOF
 
-          sed -i 's/^[[:space:]]*//' ~/.oci/config
           chmod 600 ~/.oci/config
 
       - name: Install OCI CLI
@@ -128,20 +137,13 @@ jobs:
           curl -L https://raw.githubusercontent.com/oracle/oci-cli/master/scripts/install/install.sh | bash -s -- --accept-all-defaults
           echo "$HOME/bin" >> $GITHUB_PATH
 
-      - name: Test OCI CLI
-        run: |
-          oci os ns get --region ${{ env.OCI_REGION }}
-
-      - name: Get OKE Cluster kubeconfig
+      - name: Get OKE kubeconfig
         run: |
           CLUSTER_ID=$(oci ce cluster list \
             --compartment-id ${{ secrets.OCI_COMPARTMENT_ID }} \
             --region ${{ env.OCI_REGION }} \
-            --lifecycle-state ACTIVE \
-            --query "data[?name=='togglemaster-oke'].id | [0]" \
+            --query "data[0].id" \
             --raw-output)
-
-          echo "Cluster ID: $CLUSTER_ID"
 
           mkdir -p $HOME/.kube
 
@@ -154,40 +156,45 @@ jobs:
       - name: Get OCI Namespace
         id: oci-ns
         run: |
-          NAMESPACE=$($HOME/bin/oci os ns get --query 'data' --raw-output)
+          NAMESPACE=$(oci os ns get --query 'data' --raw-output)
           echo "namespace=$NAMESPACE" >> $GITHUB_OUTPUT
-
-      - name: Update deployment image tag
-        run: |
-          NAMESPACE=${{ steps.oci-ns.outputs.namespace }}
-          IMAGE="${{ env.OCI_REGION }}.ocir.io/${NAMESPACE}/togglemaster/${{ env.SERVICE_NAME }}:${{ github.sha }}"
-          sed -i "s|REGION.ocir.io/NAMESPACE/togglemaster/auth-service:latest|${IMAGE}|g" auth-service/k8s/deployment.yaml
 
       - name: Create OCIR Pull Secret
         run: |
           NAMESPACE=${{ steps.oci-ns.outputs.namespace }}
-          kubectl create namespace togglemaster --dry-run=client -o yaml | kubectl apply --validate=false -f -
+
+          kubectl create namespace togglemaster --dry-run=client -o yaml | kubectl apply -f -
+
           kubectl create secret docker-registry ocir-secret \
             --namespace=togglemaster \
             --docker-server=${{ env.OCI_REGION }}.ocir.io \
             --docker-username="$NAMESPACE/${{ secrets.OCI_USERNAME }}" \
             --docker-password="${{ secrets.OCI_AUTH_TOKEN }}" \
-            --dry-run=client -o yaml | kubectl apply --validate=false -f -
+            --dry-run=client -o yaml | kubectl apply -f -
 
-      - name: Deploy to OKE
+      - name: Deploy manifests
         run: |
-          kubectl apply --validate=false -f auth-service/k8s/namespace.yaml
-          kubectl apply --validate=false -f auth-service/k8s/secret.yaml
-          kubectl apply --validate=false -f auth-service/k8s/deployment.yaml
-          kubectl apply --validate=false -f auth-service/k8s/service.yaml
-          kubectl apply --validate=false -f k8s-common/ingress.yaml
+          kubectl apply -f auth-service/k8s/namespace.yaml
+          kubectl apply -f auth-service/k8s/deployment.yaml
+          kubectl apply -f auth-service/k8s/service.yaml
+          kubectl apply -f k8s-common/ingress.yaml
 
-      - name: Wait for Rollout
+      - name: Update image
+        run: |
+          NAMESPACE=${{ steps.oci-ns.outputs.namespace }}
+          IMAGE="${{ env.OCI_REGION }}.ocir.io/${NAMESPACE}/togglemaster/${{ env.SERVICE_NAME }}:${{ github.sha }}"
+
+          echo "🚀 Deploying image: $IMAGE"
+
+          kubectl set image deployment/auth-service \
+            auth-service=$IMAGE \
+            -n togglemaster
+
+      - name: Wait for rollout
         run: |
           kubectl rollout status deployment/auth-service -n togglemaster --timeout=300s
 
-      - name: Get Service URL
+      - name: Get Service Info
         run: |
           echo "### Deployment Successful" >> $GITHUB_STEP_SUMMARY
-          echo "Waiting for LoadBalancer IP..." >> $GITHUB_STEP_SUMMARY
-          kubectl get svc auth-service -n togglemaster -o wide
+          kubectl get pods -n togglemaster >> $GITHUB_STEP_SUMMARY
