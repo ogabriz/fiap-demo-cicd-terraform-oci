@@ -178,10 +178,9 @@ jobs:
         run: |
           kubectl apply --validate=false -f flag-service/k8s/namespace.yaml
           kubectl apply --validate=false -f flag-service/k8s/secret.yaml
-          kubectl delete job flag-db-init -n togglemaster --ignore-not-found
-          kubectl apply --validate=false -f flag-service/k8s/db-init-job.yaml
           kubectl apply --validate=false -f flag-service/k8s/deployment.yaml
           kubectl apply --validate=false -f flag-service/k8s/service.yaml
+          kubectl apply --validate=false -f k8s-common/ingress.yaml
 
       - name: Wait for Rollout
         run: |
