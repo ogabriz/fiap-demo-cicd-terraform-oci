@@ -42,3 +42,13 @@ spec:
             name: analytics-service
             port:
               number: 80
+
+      - path: /evaluate(/|$)(.*)
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: evaluation-service
+            port:
+              number: 80
+
+              
