@@ -1,16 +1,16 @@
 {
 	"info": {
-		"_postman_id": "togglemaster-collection-id",
-		"name": "ToggleMaster OCI Production",
-		"description": "Coleção de testes para os microsserviços do ToggleMaster implantados no OCI.",
+		"_postman_id": "togglemaster-full-collection-v3",
+		"name": "ToggleMaster OCI Production COMPLETE",
+		"description": "Coleção definitiva com todos os serviços e endpoints solicitados.",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
 	},
 	"item": [
 		{
-			"name": "Auth Service (Gerenciamento de Chaves)",
+			"name": "1. AUTH - Gerenciamento de Chaves",
 			"item": [
 				{
-					"name": "Health Check",
+					"name": "Health Check (Auth)",
 					"request": {
 						"method": "GET",
 						"header": [],
@@ -22,13 +22,13 @@
 					}
 				},
 				{
-					"name": "Create Service API Key (POST)",
+					"name": "Criar evaluation-service-key (POST)",
 					"request": {
 						"method": "POST",
 						"header": [
 							{
 								"key": "Authorization",
-								"value": "Bearer mymasterkey",
+								"value": "Bearer {{master_key}}",
 								"type": "text"
 							},
 							{
@@ -46,16 +46,16 @@
 							"host": ["{{base_url}}"],
 							"path": ["auth", "admin", "keys"]
 						},
-						"description": "Cria uma nova chave de API para o serviço de avaliação. Use o token retornado para atualizar o Secret do K8s."
+						"description": "Cria a chave para o serviço de avaliação. Use o Bearer token admin-secreto-123 (master_key)."
 					}
 				}
 			]
 		},
 		{
-			"name": "Flag Service (Gerenciamento de Flags)",
+			"name": "2. FLAGS - Gerenciamento",
 			"item": [
 				{
-					"name": "Health Check",
+					"name": "Health Check (Flags)",
 					"request": {
 						"method": "GET",
 						"header": [],
@@ -67,7 +67,7 @@
 					}
 				},
 				{
-					"name": "Create Dashboard Flag (POST)",
+					"name": "Criar Flag enable-new-dashboard (POST)",
 					"request": {
 						"method": "POST",
 						"header": [
@@ -92,32 +92,14 @@
 							"path": ["flags", "flags"]
 						}
 					}
-				},
-				{
-					"name": "List All Flags (GET)",
-					"request": {
-						"method": "GET",
-						"header": [
-							{
-								"key": "Authorization",
-								"value": "Bearer {{api_key}}",
-								"type": "text"
-							}
-						],
-						"url": {
-							"raw": "{{base_url}}/flags/flags",
-							"host": ["{{base_url}}"],
-							"path": ["flags", "flags"]
-						}
-					}
 				}
 			]
 		},
 		{
-			"name": "Targeting Service (Regras)",
+			"name": "3. TARGETING - Regras",
 			"item": [
 				{
-					"name": "Health Check",
+					"name": "Health Check (Targeting)",
 					"request": {
 						"method": "GET",
 						"header": [],
@@ -129,7 +111,7 @@
 					}
 				},
 				{
-					"name": "Create 50% Percentage Rule (POST)",
+					"name": "Criar Regra PERCENTAGE 50% (POST)",
 					"request": {
 						"method": "POST",
 						"header": [
@@ -158,10 +140,10 @@
 			]
 		},
 		{
-			"name": "Evaluation Service (Motor)",
+			"name": "4. EVALUATION - Caminho Quente",
 			"item": [
 				{
-					"name": "Health Check",
+					"name": "Health Check (Evaluation)",
 					"request": {
 						"method": "GET",
 						"header": [],
@@ -173,7 +155,7 @@
 					}
 				},
 				{
-					"name": "Evaluate Dashboard (User 123)",
+					"name": "Testar User 123 (GET)",
 					"request": {
 						"method": "GET",
 						"header": [],
@@ -189,7 +171,7 @@
 					}
 				},
 				{
-					"name": "Evaluate Dashboard (User ABC)",
+					"name": "Testar User ABC (GET)",
 					"request": {
 						"method": "GET",
 						"header": [],
@@ -205,6 +187,23 @@
 					}
 				}
 			]
+		},
+		{
+			"name": "5. ANALYTICS - Auditoria",
+			"item": [
+				{
+					"name": "Health Check (Analytics)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/analytics/health",
+							"host": ["{{base_url}}"],
+							"path": ["analytics", "health"]
+						}
+					}
+				}
+			]
 		}
 	],
 	"variable": [
@@ -214,8 +213,13 @@
 			"type": "string"
 		},
 		{
+			"key": "master_key",
+			"value": "admin-secreto-123",
+			"type": "string"
+		},
+		{
 			"key": "api_key",
-			"value": "SUA_API_KEY_AQUI",
+			"value": "COLE_AQUI_O_TOKEN_GERADO_NO_PASSO_1",
 			"type": "string"
 		}
 	]
