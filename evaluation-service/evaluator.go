@@ -34,30 +34,36 @@ func (a *App) getDecision(userID, flagName string) (bool, error) {
 func (a *App) getCombinedFlagInfo(flagName string) (*CombinedFlagInfo, error) {
 	cacheKey := fmt.Sprintf("flag_info:%s", flagName)
 
-	// 1. Tentar buscar do Cache (Redis)
-	val, err := a.RedisClient.Get(ctx, cacheKey).Result()
-	if err == nil {
-		// Cache HIT
-		var info CombinedFlagInfo
-		if err := json.Unmarshal([]byte(val), &info); err == nil {
-			log.Printf("Cache HIT para flag '%s'", flagName)
-			return &info, nil
+	// 1. Tentar buscar do Cache (Redis) se o cliente estiver inicializado
+	if a.RedisClient != nil {
+		val, err := a.RedisClient.Get(ctx, cacheKey).Result()
+		if err == nil {
+			// Cache HIT
+			var info CombinedFlagInfo
+			if err := json.Unmarshal([]byte(val), &info); err == nil {
+				log.Printf("Cache HIT para flag '%s'", flagName)
+				return &info, nil
+			}
+			// Se o unmarshal falhar, trata como cache miss
+			log.Printf("Erro ao desserializar cache para flag '%s': %v", flagName, err)
 		}
-		// Se o unmarshal falhar, trata como cache miss
-		log.Printf("Erro ao desserializar cache para flag '%s': %v", flagName, err)
+		log.Printf("Cache MISS para flag '%s'", flagName)
+	} else {
+		log.Printf("Redis não disponível, buscando diretamente dos serviços para '%s'", flagName)
 	}
 	
-	log.Printf("Cache MISS para flag '%s'", flagName)
-	// 2. Cache MISS - Buscar dos serviços
+	// 2. Cache MISS ou Redis indisponível - Buscar dos serviços
 	info, err := a.fetchFromServices(flagName)
 	if err != nil {
 		return nil, err
 	}
 
-	// 3. Salvar no Cache
-	jsonData, err := json.Marshal(info)
-	if err == nil {
-		a.RedisClient.Set(ctx, cacheKey, jsonData, CACHE_TTL).Err()
+	// 3. Salvar no Cache se o Redis estiver disponível
+	if a.RedisClient != nil {
+		jsonData, err := json.Marshal(info)
+		if err == nil {
+			a.RedisClient.Set(ctx, cacheKey, jsonData, CACHE_TTL).Err()
+		}
 	}
 
 	return info, nil

@@ -39,26 +39,32 @@ func (a *App) sendEvaluationEvent(userID, flagName string, result bool) {
 		return
 	}
 
-	// Envia a mensagem de forma assíncrona para não travar o hot path
-	go func() {
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-
-		_, err = a.QueueClient.PutMessages(ctx, queue.PutMessagesRequest{
-			QueueId: common.String(a.QueueID),
-			PutMessagesDetails: queue.PutMessagesDetails{
-				Messages: []queue.PutMessagesDetailsEntry{
-					{
-						Content: common.String(string(body)),
-					},
-				},
-			},
-		})
-
-		if err != nil {
-			log.Printf("Erro ao enviar mensagem para OCI Queue: %v", err)
-		} else {
-			log.Printf("Evento de avaliação enviado para OCI Queue (Flag: %s)", flagName)
+	// Executa o envio (deve ser chamado com 'go' pelo chamador para ser assíncrono)
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("Panic detectado no envio para fila: %v", r)
 		}
 	}()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	log.Printf("Tentando enviar evento para fila %s no endpoint %s...", a.QueueID, a.QueueClient.Host)
+
+	_, err = a.QueueClient.PutMessages(ctx, queue.PutMessagesRequest{
+		QueueId: common.String(a.QueueID),
+		PutMessagesDetails: queue.PutMessagesDetails{
+			Messages: []queue.PutMessagesDetailsEntry{
+				{
+					Content: common.String(string(body)),
+				},
+			},
+		},
+	})
+
+	if err != nil {
+		log.Printf("Erro ao enviar mensagem para OCI Queue (%s): %v", a.QueueID, err)
+	} else {
+		log.Printf("Evento de avaliação enviado com sucesso para OCI Queue (Flag: %s)", flagName)
+	}
 }

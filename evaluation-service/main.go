@@ -104,11 +104,26 @@ func main() {
 			provider = common.DefaultConfigProvider()
 		}
 
+		// Tenta pegar a região do provider para logar
+		if region, err := provider.Region(); err == nil {
+			log.Printf("Região OCI detectada: %s", region)
+		}
+
 		c, err := queue.NewQueueClientWithConfigurationProvider(provider)
 		if err == nil {
-			c.Host = queueEndpoint
+			// Define o endpoint da fila (cell endpoint)
+			if queueEndpoint != "" {
+				// O Host deve ser apenas o domínio, sem https://
+				host := queueEndpoint
+				if len(host) > 8 && host[:8] == "https://" {
+					host = host[8:]
+				}
+				c.Host = host
+				// Importante: SetEndpoint garante que o BaseClient use o host correto
+				c.BaseClient.SetEndpoint(queueEndpoint)
+			}
 			app.QueueClient = &c
-			log.Println("Cliente OCI Queue inicializado.")
+			log.Printf("Cliente OCI Queue inicializado no endpoint: %s", queueEndpoint)
 		} else {
 			log.Printf("Erro ao criar cliente OCI Queue: %v", err)
 		}

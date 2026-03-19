@@ -58,7 +58,7 @@ func (a *App) evaluationHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// 3. Enviar evento para SQS (assincronamente)
+	// 3. Enviar evento para OCI Queue (assincronamente)
 	// Isso não bloqueia a resposta para o cliente.
 	go a.sendEvaluationEvent(userID, flagName, result)
 

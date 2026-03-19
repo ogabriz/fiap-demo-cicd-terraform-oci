@@ -1,0 +1,233 @@
+{
+	"info": {
+		"_postman_id": "togglemaster-collection-id",
+		"name": "ToggleMaster OCI Production",
+		"description": "Coleção de testes para os microsserviços do ToggleMaster implantados no OCI.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Auth Service (Gerenciamento de Chaves)",
+			"item": [
+				{
+					"name": "Health Check",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/auth/health",
+							"host": ["{{base_url}}"],
+							"path": ["auth", "health"]
+						}
+					}
+				},
+				{
+					"name": "Create API Key (POST)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer mymasterkey",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"Chave para Testes\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/auth/admin/keys",
+							"host": ["{{base_url}}"],
+							"path": ["auth", "admin", "keys"]
+						},
+						"description": "Cria uma nova chave de API. Use o token retornado no campo 'api_key' para as variáveis da coleção."
+					}
+				}
+			]
+		},
+		{
+			"name": "Flag Service (Gerenciamento de Flags)",
+			"item": [
+				{
+					"name": "Health Check",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/flags/health",
+							"host": ["{{base_url}}"],
+							"path": ["flags", "health"]
+						}
+					}
+				},
+				{
+					"name": "Create Flag (POST)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{api_key}}",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"enable-new-feature\",\n    \"description\": \"Habilita a nova funcionalidade de testes\",\n    \"is_enabled\": true\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/flags/flags",
+							"host": ["{{base_url}}"],
+							"path": ["flags", "flags"]
+						}
+					}
+				},
+				{
+					"name": "List Flags (GET)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{api_key}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/flags/flags",
+							"host": ["{{base_url}}"],
+							"path": ["flags", "flags"]
+						}
+					}
+				},
+				{
+					"name": "Update Flag (PUT)",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{api_key}}",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"is_enabled\": false\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/flags/flags/enable-new-feature",
+							"host": ["{{base_url}}"],
+							"path": ["flags", "flags", "enable-new-feature"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Targeting Service (Regras)",
+			"item": [
+				{
+					"name": "Health Check",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/target/health",
+							"host": ["{{base_url}}"],
+							"path": ["target", "health"]
+						}
+					}
+				},
+				{
+					"name": "Create Rule (POST)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{api_key}}",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"flag_name\": \"enable-new-feature\",\n    \"is_enabled\": true,\n    \"rules\": {\n        \"type\": \"PERCENTAGE\",\n        \"value\": 50\n    }\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/target/rules",
+							"host": ["{{base_url}}"],
+							"path": ["target", "rules"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Evaluation Service (Motor)",
+			"item": [
+				{
+					"name": "Health Check",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/evaluate/health",
+							"host": ["{{base_url}}"],
+							"path": ["evaluate", "health"]
+						}
+					}
+				},
+				{
+					"name": "Evaluate Flag (GET)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/evaluate/evaluate?user_id=user123&flag_name=enable-new-feature",
+							"host": ["{{base_url}}"],
+							"path": ["evaluate", "evaluate"],
+							"query": [
+								{ "key": "user_id", "value": "user123" },
+								{ "key": "flag_name", "value": "enable-new-feature" }
+							]
+						}
+					}
+				}
+			]
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://146.235.58.178",
+			"type": "string"
+		},
+		{
+			"key": "api_key",
+			"value": "SUA_API_KEY_AQUI",
+			"type": "string"
+		}
+	]
+}
