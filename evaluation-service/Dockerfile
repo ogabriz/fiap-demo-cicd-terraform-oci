@@ -15,8 +15,10 @@ COPY *.go ./
 RUN go mod tidy
 RUN go mod download
 
-# Build da aplicação
-RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o evaluation-service .
+# Build da aplicação (usa ARG do Docker para cross-compilation se necessário)
+ARG TARGETOS
+ARG TARGETARCH
+RUN CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH:-amd64} go build -ldflags="-w -s" -o evaluation-service .
 
 # ====== STAGE 2: RUNTIME ======
 FROM alpine:3.18

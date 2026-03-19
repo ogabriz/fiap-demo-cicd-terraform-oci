@@ -119,8 +119,7 @@ func main() {
 					host = host[8:]
 				}
 				c.Host = host
-				// Importante: SetEndpoint garante que o BaseClient use o host correto
-				c.BaseClient.SetEndpoint(queueEndpoint)
+				// No SDK v65, o Host é o campo correto para definir o endpoint do cliente
 			}
 			app.QueueClient = &c
 			log.Printf("Cliente OCI Queue inicializado no endpoint: %s", queueEndpoint)
