@@ -115,12 +115,11 @@ func main() {
 
 			c, err := queue.NewQueueClientWithConfigurationProvider(provider)
 			if err == nil {
+				// Para o OCI Queue, o Host deve ser o "Cell Endpoint" (ex: cell-1.queue.messaging...)
+				// No SDK v65, usamos SetEndpoint para garantir que todas as chamadas usem o host correto
 				if queueEndpoint != "" {
-					host := queueEndpoint
-					if len(host) > 8 && host[:8] == "https://" {
-						host = host[8:]
-					}
-					c.Host = host
+					c.BaseClient.SetEndpoint(queueEndpoint)
+					log.Printf("OCI Queue Client configurado com endpoint: %s", queueEndpoint)
 				}
 				app.QueueClient = &c
 				log.Printf("Cliente OCI Queue inicializado com sucesso.")

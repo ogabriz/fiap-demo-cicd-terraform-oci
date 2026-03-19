@@ -22,7 +22,7 @@
 					}
 				},
 				{
-					"name": "Create API Key (POST)",
+					"name": "Create Service API Key (POST)",
 					"request": {
 						"method": "POST",
 						"header": [
@@ -39,14 +39,14 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"name\": \"Chave para Testes\"\n}"
+							"raw": "{\n    \"name\": \"evaluation-service-key\"\n}"
 						},
 						"url": {
 							"raw": "{{base_url}}/auth/admin/keys",
 							"host": ["{{base_url}}"],
 							"path": ["auth", "admin", "keys"]
 						},
-						"description": "Cria uma nova chave de API. Use o token retornado no campo 'api_key' para as variáveis da coleção."
+						"description": "Cria uma nova chave de API para o serviço de avaliação. Use o token retornado para atualizar o Secret do K8s."
 					}
 				}
 			]
@@ -67,7 +67,7 @@
 					}
 				},
 				{
-					"name": "Create Flag (POST)",
+					"name": "Create Dashboard Flag (POST)",
 					"request": {
 						"method": "POST",
 						"header": [
@@ -84,7 +84,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"name\": \"enable-new-feature\",\n    \"description\": \"Habilita a nova funcionalidade de testes\",\n    \"is_enabled\": true\n}"
+							"raw": "{\n    \"name\": \"enable-new-dashboard\",\n    \"description\": \"Habilita o novo dashboard de controle\",\n    \"is_enabled\": true\n}"
 						},
 						"url": {
 							"raw": "{{base_url}}/flags/flags",
@@ -94,7 +94,7 @@
 					}
 				},
 				{
-					"name": "List Flags (GET)",
+					"name": "List All Flags (GET)",
 					"request": {
 						"method": "GET",
 						"header": [
@@ -108,33 +108,6 @@
 							"raw": "{{base_url}}/flags/flags",
 							"host": ["{{base_url}}"],
 							"path": ["flags", "flags"]
-						}
-					}
-				},
-				{
-					"name": "Update Flag (PUT)",
-					"request": {
-						"method": "PUT",
-						"header": [
-							{
-								"key": "Authorization",
-								"value": "Bearer {{api_key}}",
-								"type": "text"
-							},
-							{
-								"key": "Content-Type",
-								"value": "application/json",
-								"type": "text"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n    \"is_enabled\": false\n}"
-						},
-						"url": {
-							"raw": "{{base_url}}/flags/flags/enable-new-feature",
-							"host": ["{{base_url}}"],
-							"path": ["flags", "flags", "enable-new-feature"]
 						}
 					}
 				}
@@ -156,7 +129,7 @@
 					}
 				},
 				{
-					"name": "Create Rule (POST)",
+					"name": "Create 50% Percentage Rule (POST)",
 					"request": {
 						"method": "POST",
 						"header": [
@@ -173,7 +146,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"flag_name\": \"enable-new-feature\",\n    \"is_enabled\": true,\n    \"rules\": {\n        \"type\": \"PERCENTAGE\",\n        \"value\": 50\n    }\n}"
+							"raw": "{\n    \"flag_name\": \"enable-new-dashboard\",\n    \"is_enabled\": true,\n    \"rules\": {\n        \"type\": \"PERCENTAGE\",\n        \"value\": 50\n    }\n}"
 						},
 						"url": {
 							"raw": "{{base_url}}/target/rules",
@@ -200,17 +173,33 @@
 					}
 				},
 				{
-					"name": "Evaluate Flag (GET)",
+					"name": "Evaluate Dashboard (User 123)",
 					"request": {
 						"method": "GET",
 						"header": [],
 						"url": {
-							"raw": "{{base_url}}/evaluate/evaluate?user_id=user123&flag_name=enable-new-feature",
+							"raw": "{{base_url}}/evaluate/evaluate?user_id=user-123&flag_name=enable-new-dashboard",
 							"host": ["{{base_url}}"],
 							"path": ["evaluate", "evaluate"],
 							"query": [
-								{ "key": "user_id", "value": "user123" },
-								{ "key": "flag_name", "value": "enable-new-feature" }
+								{ "key": "user_id", "value": "user-123" },
+								{ "key": "flag_name", "value": "enable-new-dashboard" }
+							]
+						}
+					}
+				},
+				{
+					"name": "Evaluate Dashboard (User ABC)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/evaluate/evaluate?user_id=user-abc&flag_name=enable-new-dashboard",
+							"host": ["{{base_url}}"],
+							"path": ["evaluate", "evaluate"],
+							"query": [
+								{ "key": "user_id", "value": "user-abc" },
+								{ "key": "flag_name", "value": "enable-new-dashboard" }
 							]
 						}
 					}

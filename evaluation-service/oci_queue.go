@@ -49,7 +49,7 @@ func (a *App) sendEvaluationEvent(userID, flagName string, result bool) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	log.Printf("Tentando enviar evento para fila %s no endpoint %s...", a.QueueID, a.QueueClient.Host)
+	log.Printf("Tentando enviar evento para fila %s...", a.QueueID)
 
 	_, err = a.QueueClient.PutMessages(ctx, queue.PutMessagesRequest{
 		QueueId: common.String(a.QueueID),
