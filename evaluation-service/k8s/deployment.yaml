@@ -46,16 +46,16 @@ spec:
                 secretKeyRef:
                   name: evaluation-service-secret
                   key: SERVICE_API_KEY
-            - name: AWS_SQS_URL
+            - name: OCI_QUEUE_ENDPOINT
               valueFrom:
                 secretKeyRef:
                   name: evaluation-service-secret
-                  key: AWS_SQS_URL
-            - name: AWS_REGION
+                  key: OCI_QUEUE_ENDPOINT
+            - name: OCI_QUEUE_ID
               valueFrom:
                 secretKeyRef:
                   name: evaluation-service-secret
-                  key: AWS_REGION
+                  key: OCI_QUEUE_ID
           resources:
             requests:
               cpu: 50m
