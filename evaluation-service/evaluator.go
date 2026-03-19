@@ -123,6 +123,9 @@ func (a *App) fetchFlag(flagName string) (*Flag, error) {
 		return nil, &NotFoundError{flagName}
 	}
 	if resp.StatusCode != http.StatusOK {
+		if resp.StatusCode == http.StatusUnauthorized {
+			log.Printf("ERRO: 401 Unauthorized ao chamar flag-service. Verifique se a SERVICE_API_KEY é válida.")
+		}
 		return nil, fmt.Errorf("flag-service retornou status %d", resp.StatusCode)
 	}
 
@@ -150,6 +153,9 @@ func (a *App) fetchRule(flagName string) (*TargetingRule, error) {
 		return nil, &NotFoundError{flagName} // Não é um erro fatal
 	}
 	if resp.StatusCode != http.StatusOK {
+		if resp.StatusCode == http.StatusUnauthorized {
+			log.Printf("ERRO: 401 Unauthorized ao chamar targeting-service. Verifique se a SERVICE_API_KEY é válida.")
+		}
 		return nil, fmt.Errorf("targeting-service retornou status %d", resp.StatusCode)
 	}
 
