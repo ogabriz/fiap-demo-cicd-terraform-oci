@@ -10,7 +10,8 @@ RUN apk add --no-cache git
 COPY go.mod ./
 COPY go.sum* ./
 
-# Download de dependências
+# Download de dependências e gera o go.sum correto
+RUN go mod tidy
 RUN go mod download
 
 # Copiar código-fonte
