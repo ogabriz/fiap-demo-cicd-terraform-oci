@@ -115,10 +115,14 @@ func main() {
 
 			c, err := queue.NewQueueClientWithConfigurationProvider(provider)
 			if err == nil {
-				// No SDK v65, usamos SetEndpoint diretamente no cliente para configurar o Message Endpoint
+				// No SDK v65, configuramos o Host diretamente. O Host deve ser apenas o domínio, sem https://
 				if queueEndpoint != "" {
-					c.SetEndpoint(queueEndpoint)
-					log.Printf("OCI Queue Client configurado com endpoint: %s", queueEndpoint)
+					host := queueEndpoint
+					if len(host) > 8 && host[:8] == "https://" {
+						host = host[8:]
+					}
+					c.Host = host
+					log.Printf("OCI Queue Client configurado com Host: %s", host)
 				}
 				app.QueueClient = &c
 				log.Printf("Cliente OCI Queue inicializado com sucesso.")

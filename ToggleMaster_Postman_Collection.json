@@ -1,16 +1,16 @@
 {
 	"info": {
-		"_postman_id": "togglemaster-full-collection-v3",
-		"name": "ToggleMaster OCI Production COMPLETE",
-		"description": "Coleção definitiva com todos os serviços e endpoints solicitados.",
+		"_postman_id": "togglemaster-collection-id",
+		"name": "ToggleMaster OCI Production",
+		"description": "Coleção de testes para os microsserviços do ToggleMaster implantados no OCI.",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
 	},
 	"item": [
 		{
-			"name": "1. AUTH - Gerenciamento de Chaves",
+			"name": "Auth Service",
 			"item": [
 				{
-					"name": "Health Check (Auth)",
+					"name": "Health Check",
 					"request": {
 						"method": "GET",
 						"header": [],
@@ -22,13 +22,13 @@
 					}
 				},
 				{
-					"name": "Criar evaluation-service-key (POST)",
+					"name": "Create Admin API Key",
 					"request": {
 						"method": "POST",
 						"header": [
 							{
 								"key": "Authorization",
-								"value": "Bearer {{master_key}}",
+								"value": "Bearer mymasterkey",
 								"type": "text"
 							},
 							{
@@ -39,23 +39,22 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"name\": \"evaluation-service-key\"\n}"
+							"raw": "{\n    \"name\": \"Chave de Producao\"\n}"
 						},
 						"url": {
 							"raw": "{{base_url}}/auth/admin/keys",
 							"host": ["{{base_url}}"],
 							"path": ["auth", "admin", "keys"]
-						},
-						"description": "Cria a chave para o serviço de avaliação. Use o Bearer token admin-secreto-123 (master_key)."
+						}
 					}
 				}
 			]
 		},
 		{
-			"name": "2. FLAGS - Gerenciamento",
+			"name": "Flag Service",
 			"item": [
 				{
-					"name": "Health Check (Flags)",
+					"name": "Health Check",
 					"request": {
 						"method": "GET",
 						"header": [],
@@ -67,25 +66,16 @@
 					}
 				},
 				{
-					"name": "Criar Flag enable-new-dashboard (POST)",
+					"name": "List Flags",
 					"request": {
-						"method": "POST",
+						"method": "GET",
 						"header": [
 							{
 								"key": "Authorization",
 								"value": "Bearer {{api_key}}",
 								"type": "text"
-							},
-							{
-								"key": "Content-Type",
-								"value": "application/json",
-								"type": "text"
 							}
 						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n    \"name\": \"enable-new-dashboard\",\n    \"description\": \"Habilita o novo dashboard de controle\",\n    \"is_enabled\": true\n}"
-						},
 						"url": {
 							"raw": "{{base_url}}/flags/flags",
 							"host": ["{{base_url}}"],
@@ -96,10 +86,10 @@
 			]
 		},
 		{
-			"name": "3. TARGETING - Regras",
+			"name": "Targeting Service",
 			"item": [
 				{
-					"name": "Health Check (Targeting)",
+					"name": "Health Check",
 					"request": {
 						"method": "GET",
 						"header": [],
@@ -111,39 +101,30 @@
 					}
 				},
 				{
-					"name": "Criar Regra PERCENTAGE 50% (POST)",
+					"name": "Get Rules",
 					"request": {
-						"method": "POST",
+						"method": "GET",
 						"header": [
 							{
 								"key": "Authorization",
 								"value": "Bearer {{api_key}}",
 								"type": "text"
-							},
-							{
-								"key": "Content-Type",
-								"value": "application/json",
-								"type": "text"
 							}
 						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n    \"flag_name\": \"enable-new-dashboard\",\n    \"is_enabled\": true,\n    \"rules\": {\n        \"type\": \"PERCENTAGE\",\n        \"value\": 50\n    }\n}"
-						},
 						"url": {
-							"raw": "{{base_url}}/target/rules",
+							"raw": "{{base_url}}/target/rules/flag-exemplo",
 							"host": ["{{base_url}}"],
-							"path": ["target", "rules"]
+							"path": ["target", "rules", "flag-exemplo"]
 						}
 					}
 				}
 			]
 		},
 		{
-			"name": "4. EVALUATION - Caminho Quente",
+			"name": "Evaluation Service",
 			"item": [
 				{
-					"name": "Health Check (Evaluation)",
+					"name": "Health Check",
 					"request": {
 						"method": "GET",
 						"header": [],
@@ -155,33 +136,17 @@
 					}
 				},
 				{
-					"name": "Testar User 123 (GET)",
+					"name": "Evaluate Flag",
 					"request": {
 						"method": "GET",
 						"header": [],
 						"url": {
-							"raw": "{{base_url}}/evaluate/evaluate?user_id=user-123&flag_name=enable-new-dashboard",
+							"raw": "{{base_url}}/evaluate/evaluate?user_id=user123&flag_name=enable-new-feature",
 							"host": ["{{base_url}}"],
 							"path": ["evaluate", "evaluate"],
 							"query": [
-								{ "key": "user_id", "value": "user-123" },
-								{ "key": "flag_name", "value": "enable-new-dashboard" }
-							]
-						}
-					}
-				},
-				{
-					"name": "Testar User ABC (GET)",
-					"request": {
-						"method": "GET",
-						"header": [],
-						"url": {
-							"raw": "{{base_url}}/evaluate/evaluate?user_id=user-abc&flag_name=enable-new-dashboard",
-							"host": ["{{base_url}}"],
-							"path": ["evaluate", "evaluate"],
-							"query": [
-								{ "key": "user_id", "value": "user-abc" },
-								{ "key": "flag_name", "value": "enable-new-dashboard" }
+								{ "key": "user_id", "value": "user123" },
+								{ "key": "flag_name", "value": "enable-new-feature" }
 							]
 						}
 					}
@@ -189,10 +154,10 @@
 			]
 		},
 		{
-			"name": "5. ANALYTICS - Auditoria",
+			"name": "Analytics Service",
 			"item": [
 				{
-					"name": "Health Check (Analytics)",
+					"name": "Health Check",
 					"request": {
 						"method": "GET",
 						"header": [],
@@ -213,13 +178,8 @@
 			"type": "string"
 		},
 		{
-			"key": "master_key",
-			"value": "admin-secreto-123",
-			"type": "string"
-		},
-		{
 			"key": "api_key",
-			"value": "COLE_AQUI_O_TOKEN_GERADO_NO_PASSO_1",
+			"value": "SUA_API_KEY_AQUI",
 			"type": "string"
 		}
 	]
