@@ -6,16 +6,14 @@ WORKDIR /app
 # Instalar git (necessário para go mod download)
 RUN apk add --no-cache git
 
-# Copiar arquivos de dependência
+# Copiar arquivos de dependência e código-fonte
 COPY go.mod ./
 COPY go.sum* ./
+COPY *.go ./
 
-# Download de dependências e gera o go.sum correto
+# Resolve dependências e gera o go.sum correto
 RUN go mod tidy
 RUN go mod download
-
-# Copiar código-fonte
-COPY *.go ./
 
 # Build da aplicação
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-w -s" -o evaluation-service .
