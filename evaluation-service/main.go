@@ -61,14 +61,27 @@ func main() {
 
 	// --- Inicializa Clientes ---
 	
-	// Cliente Redis
+	// Cliente Redis com Retry Loop
 	opt, err := redis.ParseURL(redisURL)
 	if err != nil {
 		log.Fatalf("Não foi possível parsear a URL do Redis: %v", err)
 	}
 	rdb := redis.NewClient(opt)
-	if _, err := rdb.Ping(ctx).Result(); err != nil {
-		log.Fatalf("Não foi possível conectar ao Redis: %v", err)
+
+	// Tenta conectar ao Redis por até 1 minuto
+	maxRetries := 12
+	connected := false
+	for i := 0; i < maxRetries; i++ {
+		if _, err := rdb.Ping(ctx).Result(); err == nil {
+			connected = true
+			break
+		}
+		log.Printf("Tentando conectar ao Redis (%d/%d)...", i+1, maxRetries)
+		time.Sleep(5 * time.Second)
+	}
+
+	if !connected {
+		log.Fatal("Não foi possível conectar ao Redis após várias tentativas.")
 	}
 	log.Println("Conectado ao Redis com sucesso!")
 
