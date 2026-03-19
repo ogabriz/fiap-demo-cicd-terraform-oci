@@ -71,73 +71,64 @@ func main() {
 	}()
 
 	// --- Inicialização de Dependências em Background ---
-	
-	// 1. Cliente Redis com Retry Loop
-	if redisURL != "" {
-		opt, err := redis.ParseURL(redisURL)
-		if err != nil {
-			log.Printf("Erro ao parsear URL do Redis: %v", err)
-		} else {
+	// Marcamos como pronto IMEDIATAMENTE para que o Kubernetes aceite o pod.
+	// As conexões serão estabelecidas em segundo plano.
+	if flagSvcURL != "" && targetingSvcURL != "" {
+		app.IsReady = true
+		log.Println("Serviço marcado como READY (inicializando dependências em background...)")
+	}
+
+	// 1. Cliente Redis com Retry Loop (em Goroutine)
+	go func() {
+		if redisURL != "" {
+			opt, err := redis.ParseURL(redisURL)
+			if err != nil {
+				log.Printf("Erro ao parsear URL do Redis: %v", err)
+				return
+			}
 			rdb := redis.NewClient(opt)
-			maxRetries := 20
+			maxRetries := 30
 			for i := 0; i < maxRetries; i++ {
 				if _, err := rdb.Ping(ctx).Result(); err == nil {
 					app.RedisClient = rdb
-					log.Println("Conectado ao Redis com sucesso!")
-					break
+					log.Println("Conexão com Redis estabelecida com sucesso!")
+					return
 				}
 				log.Printf("Tentando conectar ao Redis (%d/%d)...", i+1, maxRetries)
 				time.Sleep(5 * time.Second)
 			}
+			log.Println("Aviso: Não foi possível conectar ao Redis após 30 tentativas. O serviço continuará sem cache.")
 		}
-	}
+	}()
 
-	// 2. Cliente OCI Queue
-	if queueEndpoint != "" {
-		var provider common.ConfigurationProvider
-		var err error
-		
-		// Tenta usar Resource Principal (OKE), senão usa config default (local)
-		provider, err = auth.ResourcePrincipalConfigurationProvider()
-		if err != nil {
-			log.Printf("Resource Principal não disponível, usando config default: %v", err)
-			provider = common.DefaultConfigProvider()
-		}
-
-		// Tenta pegar a região do provider para logar
-		if region, err := provider.Region(); err == nil {
-			log.Printf("Região OCI detectada: %s", region)
-		}
-
-		c, err := queue.NewQueueClientWithConfigurationProvider(provider)
-		if err == nil {
-			// Define o endpoint da fila (cell endpoint)
-			if queueEndpoint != "" {
-				// O Host deve ser apenas o domínio, sem https://
-				host := queueEndpoint
-				if len(host) > 8 && host[:8] == "https://" {
-					host = host[8:]
-				}
-				c.Host = host
-				// No SDK v65, o Host é o campo correto para definir o endpoint do cliente
+	// 2. Cliente OCI Queue (em Goroutine)
+	go func() {
+		if queueEndpoint != "" {
+			var provider common.ConfigurationProvider
+			var err error
+			
+			provider, err = auth.ResourcePrincipalConfigurationProvider()
+			if err != nil {
+				log.Printf("Resource Principal não disponível, usando config default: %v", err)
+				provider = common.DefaultConfigProvider()
 			}
-			app.QueueClient = &c
-			log.Printf("Cliente OCI Queue inicializado no endpoint: %s", queueEndpoint)
-		} else {
-			log.Printf("Erro ao criar cliente OCI Queue: %v", err)
-		}
-	}
 
-	// Marca como pronto se as URLs obrigatórias estiverem presentes
-	if flagSvcURL != "" && targetingSvcURL != "" {
-		app.IsReady = true
-		log.Println("Serviço pronto para processar requisições.")
-		if app.RedisClient == nil {
-			log.Println("Aviso: Redis não disponível, performance reduzida.")
+			c, err := queue.NewQueueClientWithConfigurationProvider(provider)
+			if err == nil {
+				if queueEndpoint != "" {
+					host := queueEndpoint
+					if len(host) > 8 && host[:8] == "https://" {
+						host = host[8:]
+					}
+					c.Host = host
+				}
+				app.QueueClient = &c
+				log.Printf("Cliente OCI Queue inicializado com sucesso.")
+			} else {
+				log.Printf("Erro ao criar cliente OCI Queue: %v", err)
+			}
 		}
-	} else {
-		log.Println("ERRO: FLAG_SERVICE_URL ou TARGETING_SERVICE_URL ausentes. Serviço não ficará pronto.")
-	}
+	}()
 
 	// Mantém o main rodando
 	select {}

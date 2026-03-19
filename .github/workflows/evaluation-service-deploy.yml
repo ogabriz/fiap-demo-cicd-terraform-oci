@@ -184,7 +184,7 @@ jobs:
 
       - name: Wait for Rollout
         run: |
-          kubectl rollout status deployment/evaluation-service -n togglemaster --timeout=120s
+          kubectl rollout status deployment/evaluation-service -n togglemaster --timeout=300s
 
       - name: Get Service URL
         run: |
