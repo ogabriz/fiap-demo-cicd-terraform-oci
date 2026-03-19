@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 )
@@ -14,8 +15,21 @@ type EvaluationResponse struct {
 
 func (a *App) healthHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
+	
+	status := "ok"
+	code := http.StatusOK
+	
+	if !a.IsReady {
+		status = "initializing"
+		// Retornamos 503 para que o Readiness Probe do K8s saiba que não estamos prontos
+		code = http.StatusServiceUnavailable
+	}
+
+	w.WriteHeader(code)
+	json.NewEncoder(w).Encode(map[string]string{
+		"status": status,
+		"redis":  fmt.Sprintf("%v", a.RedisClient != nil),
+	})
 }
 
 func (a *App) evaluationHandler(w http.ResponseWriter, r *http.Request) {
