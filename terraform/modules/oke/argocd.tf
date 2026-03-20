@@ -6,20 +6,16 @@ resource "helm_release" "argocd" {
   create_namespace = true
   version          = "7.7.1"
 
-  set {
-    name  = "server.service.type"
-    value = "LoadBalancer"
-  }
-
-  set {
-    name  = "server.extraArgs[0]"
-    value = "--insecure"
-  }
-
-  set {
-    name  = "server.service.annotations.service\\.beta\\.kubernetes\\.io/oci-load-balancer-shape"
-    value = "flexible"
-  }
+  values = [<<EOF
+server:
+  service:
+    type: LoadBalancer
+    annotations:
+      service.beta.kubernetes.io/oci-load-balancer-shape: flexible
+  extraArgs:
+    - --insecure
+EOF
+  ]
 }
 
 resource "kubernetes_manifest" "argocd_apps" {
@@ -40,15 +36,18 @@ resource "kubernetes_manifest" "argocd_apps" {
     }
     spec = {
       project = "default"
+
       source = {
         repoURL        = "https://github.com/ealvesjr90/fiap-demo-cicd-terraform-oci.git"
         targetRevision = "main"
         path           = "${each.key}/k8s"
       }
+
       destination = {
         server    = "https://kubernetes.default.svc"
         namespace = "togglemaster"
       }
+
       syncPolicy = {
         automated = {
           prune    = true
