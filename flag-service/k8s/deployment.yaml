@@ -15,11 +15,24 @@ spec:
       labels:
         app: flag-service
     spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
       imagePullSecrets:
         - name: ocir-secret
       containers:
         - name: flag-service
-          image: REGION.ocir.io/NAMESPACE/togglemaster/flag-service:latest
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          image: REGION.ocir.io/NAMESPACE/togglemaster/flag-service:v1.0.0
           ports:
             - containerPort: 8002
               protocol: TCP
