@@ -12,13 +12,24 @@ resource "helm_release" "argocd" {
   }
 
   set {
-    name  = "server.extraArgs"
-    value = "{--insecure}"
+    name  = "server.extraArgs[0]"
+    value = "--insecure"
+  }
+
+  set {
+    name  = "server.service.annotations.service\\.beta\\.kubernetes\\.io/oci-load-balancer-shape"
+    value = "flexible"
   }
 }
 
 resource "kubernetes_manifest" "argocd_apps" {
-  for_each = toset(["auth-service", "flag-service", "targeting-service", "evaluation-service", "analytics-service"])
+  for_each = toset([
+    "auth-service",
+    "flag-service",
+    "targeting-service",
+    "evaluation-service",
+    "analytics-service"
+  ])
 
   manifest = {
     apiVersion = "argoproj.io/v1alpha1"
@@ -31,7 +42,7 @@ resource "kubernetes_manifest" "argocd_apps" {
       project = "default"
       source = {
         repoURL        = "https://github.com/ealvesjr90/fiap-demo-cicd-terraform-oci.git"
-        targetRevision = "HEAD"
+        targetRevision = "main"
         path           = "${each.key}/k8s"
       }
       destination = {
@@ -43,6 +54,9 @@ resource "kubernetes_manifest" "argocd_apps" {
           prune    = true
           selfHeal = true
         }
+        syncOptions = [
+          "CreateNamespace=true"
+        ]
       }
     }
   }

@@ -11,7 +11,7 @@ terraform {
     }
     helm = {
       source  = "hashicorp/helm"
-      version = ">= 2.0.0"
+      version = ">= 2.10.0"
     }
   }
 }
@@ -24,7 +24,7 @@ provider "oci" {
   private_key_path = "~/.oci/oci_api_key.pem"
 }
 
-data "oci_containerengine_cluster_kubeconfig" "oke" {
+data "oci_containerengine_cluster_kube_config" "oke" {
   cluster_id = module.oke.cluster_id
 }
 
@@ -39,10 +39,10 @@ provider "kubernetes" {
 }
 
 provider "helm" {
-  kubernetes {
+  kubernetes= {
     host                   = local.kubeconfig.clusters[0].cluster.server
     cluster_ca_certificate = base64decode(local.kubeconfig.clusters[0].cluster.certificate-authority-data)
-    exec {
+    exec= {
       api_version = "client.authentication.k8s.io/v1beta1"
       args        = ["ce", "cluster", "generate-token", "--cluster-id", module.oke.cluster_id]
       command     = "oci"
@@ -51,5 +51,5 @@ provider "helm" {
 }
 
 locals {
-  kubeconfig = yamldecode(data.oci_containerengine_cluster_kubeconfig.oke.content)
+  kubeconfig = yamldecode(data.oci_containerengine_cluster_kube_config.oke.content)
 }
