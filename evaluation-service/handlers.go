@@ -13,6 +13,12 @@ type EvaluationResponse struct {
 	Result   bool   `json:"result"`
 }
 
+func (a *App) writeJSON(w http.ResponseWriter, data any) {
+	if err := json.NewEncoder(w).Encode(data); err != nil {
+		log.Printf("erro ao escrever JSON: %v", err)
+	}
+}
+
 func (a *App) healthHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
@@ -21,23 +27,19 @@ func (a *App) healthHandler(w http.ResponseWriter, r *http.Request) {
 
 	if !a.IsReady {
 		status = "initializing"
-		// Retornamos 503 para que o Readiness Probe do K8s saiba que não estamos prontos
 		code = http.StatusServiceUnavailable
 	}
 
 	w.WriteHeader(code)
-	if err := json.NewEncoder(w).Encode(map[string]string{
+	a.writeJSON(w, map[string]string{
 		"status": status,
 		"redis":  fmt.Sprintf("%v", a.RedisClient != nil),
-	}); err != nil {
-		log.Printf("Erro ao encodar health response: %v", err)
-	}
+	})
 }
 
 func (a *App) evaluationHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
-	// 1. Parsear os query parameters
 	userID := r.URL.Query().Get("user_id")
 	flagName := r.URL.Query().Get("flag_name")
 
@@ -46,31 +48,22 @@ func (a *App) evaluationHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 2. Obter a decisão (lógica de cache/serviço está em evaluator.go)
 	result, err := a.getDecision(userID, flagName)
 	if err != nil {
-		// Se o erro for "não encontrado", retornamos 'false' (comportamento seguro)
 		if _, ok := err.(*NotFoundError); ok {
 			result = false
 		} else {
-			// Outros erros (serviços offline, etc)
-			log.Printf("Erro ao avaliar flag '%s': %v", flagName, err)
-			http.Error(w, `{"error": "Erro interno ao avaliar a flag"}`, http.StatusBadGateway)
+			http.Error(w, `{"error": "Erro interno"}`, http.StatusBadGateway)
 			return
 		}
 	}
 
-	// 3. Enviar evento para OCI Queue (assincronamente)
-	// Isso não bloqueia a resposta para o cliente.
 	go a.sendEvaluationEvent(userID, flagName, result)
 
-	// 4. Retornar a resposta
 	w.WriteHeader(http.StatusOK)
-	if err := json.NewEncoder(w).Encode(EvaluationResponse{
+	a.writeJSON(w, EvaluationResponse{
 		FlagName: flagName,
 		UserID:   userID,
 		Result:   result,
-	}); err != nil {
-		log.Printf("Erro ao encodar evaluation response: %v", err)
-	}
+	})
 }

@@ -32,7 +32,7 @@ spec:
             capabilities:
               drop:
                 - ALL
-          image: REGION.ocir.io/NAMESPACE/togglemaster/flag-service:v1.0.0
+          image: sa-saopaulo-1.ocir.io/grqkmwwimskh/togglemaster/flag-service:5c45ac117e162e0ff230ef34afa729e2398c2f9c
           ports:
             - containerPort: 8002
               protocol: TCP
