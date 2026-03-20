@@ -1,4 +1,13 @@
-resource "oci_nosql_table" "table" {
+terraform {
+  required_providers {
+    oci = {
+      source  = "oracle/oci"
+      version = ">= 5.0.0"
+    }
+  }
+}
+
+resource "oci_nosql_table" "main" {
   compartment_id = var.compartment_id
   name           = var.table_name
 
