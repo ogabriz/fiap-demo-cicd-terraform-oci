@@ -14,12 +14,27 @@ spec:
     metadata:
       labels:
         app: evaluation-service
+      annotations:
+        checkov:skip=CKV_K8S_43: "Images are pulled from trusted private OCIR registry"
     spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
       imagePullSecrets:
         - name: ocir-secret
       containers:
         - name: evaluation-service
-          image: REGION.ocir.io/NAMESPACE/togglemaster/evaluation-service:latest
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          image: REGION.ocir.io/NAMESPACE/togglemaster/evaluation-service:v1.0.0
           ports:
             - containerPort: 8004
               protocol: TCP

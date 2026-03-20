@@ -26,11 +26,15 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.21'
+          go-version: '1.25'
           cache-dependency-path: evaluation-service/go.sum
 
+      - name: Workaround for golangci-lint
+        run: |
+          sed -i 's/^go 1.2.*/go 1.24.0/' evaluation-service/go.mod
+
       - name: Go Lint
-        uses: golangci/golangci-lint-action@v4
+        uses: golangci/golangci-lint-action@v6
         with:
           version: latest
           working-directory: evaluation-service
