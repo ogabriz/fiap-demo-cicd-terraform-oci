@@ -15,11 +15,24 @@ spec:
       labels:
         app: auth-service
     spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
       imagePullSecrets:
         - name: ocir-secret
       containers:
         - name: auth-service
-          image: REGION.ocir.io/NAMESPACE/togglemaster/auth-service:latest
+          image: REGION.ocir.io/NAMESPACE/togglemaster/auth-service:v1.0.0
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            seccompProfile:
+              type: RuntimeDefault
+            capabilities:
+              drop:
+                - ALL
           ports:
             - containerPort: 8001
               protocol: TCP
