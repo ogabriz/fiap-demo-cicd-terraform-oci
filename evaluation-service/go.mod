@@ -1,6 +1,6 @@
 module evaluation-service
 
-go 1.21
+go 1.25.0
 
 require (
 	github.com/go-redis/redis/v8 v8.11.5
@@ -14,6 +14,6 @@ require (
 	github.com/gofrs/flock v0.8.1 // indirect
 	github.com/onsi/gomega v1.27.6 // indirect
 	github.com/sony/gobreaker v0.5.0 // indirect
-	golang.org/x/net v0.21.0 // indirect
-	golang.org/x/sys v0.17.0 // indirect
+	golang.org/x/net v0.52.0 // indirect
+	golang.org/x/sys v0.42.0 // indirect
 )

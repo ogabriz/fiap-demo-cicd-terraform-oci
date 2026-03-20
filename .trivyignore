@@ -1,0 +1,5 @@
+# Trivy Ignore File
+# Add CVE IDs or misconfiguration IDs to ignore, one per line.
+# Example:
+# CVE-2021-1234
+KSV-0125
