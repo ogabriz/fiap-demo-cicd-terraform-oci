@@ -22,6 +22,6 @@ COPY db/init.sql ./db/init.sql
 
 USER appuser
 
-EXPOSE 8002
+EXPOSE 8001
 
 CMD ["./auth-service"]
