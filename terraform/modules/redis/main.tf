@@ -1,3 +1,12 @@
+terraform {
+  required_providers {
+    oci = {
+      source  = "oracle/oci"
+      version = ">= 5.0.0"
+    }
+  }
+}
+
 resource "oci_core_instance" "redis" {
 
   availability_domain = data.oci_identity_availability_domains.ads.availability_domains[0].name
