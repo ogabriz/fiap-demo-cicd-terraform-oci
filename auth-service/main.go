@@ -66,7 +66,6 @@ func main() {
 	db.SetMaxIdleConns(5)
 	db.SetConnMaxLifetime(5 * time.Minute)
 
-	// Tentar conectar ao banco com retry
 	maxRetries := 10
 	var lastErr error
 	for i := 0; i < maxRetries; i++ {
@@ -84,13 +83,11 @@ func main() {
 		log.Fatalf("Failed to ping database after %d attempts: %v", maxRetries, lastErr)
 	}
 
-	// Inicializar tabelas
 	if err := initDatabase(db); err != nil {
 		log.Fatalf("Failed to initialize database: %v", err)
 	}
 
 	mux := http.NewServeMux()
-
 	mux.HandleFunc("/health", healthHandler)
 	mux.HandleFunc("/health/db", dbHealthHandler)
 	mux.HandleFunc("/validate", validateHandler)
@@ -103,8 +100,6 @@ func main() {
 }
 
 func initDatabase(db *sql.DB) error {
-	log.Println("Initializing database schema...")
-	
 	schema := `
     CREATE TABLE IF NOT EXISTS api_keys (
         id SERIAL PRIMARY KEY,
@@ -115,8 +110,6 @@ func initDatabase(db *sql.DB) error {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         last_used_at TIMESTAMP
     );
-    CREATE INDEX IF NOT EXISTS idx_api_keys_key_hash ON api_keys(key_hash);
-    CREATE INDEX IF NOT EXISTS idx_api_keys_is_active ON api_keys(is_active);
     `
 
 	_, err := db.Exec(schema)
@@ -124,8 +117,13 @@ func initDatabase(db *sql.DB) error {
 		return fmt.Errorf("failed to execute schema: %w", err)
 	}
 
-	log.Println("Database schema initialized successfully")
 	return nil
+}
+
+func writeJSON(w http.ResponseWriter, data any) {
+	if err := json.NewEncoder(w).Encode(data); err != nil {
+		log.Printf("erro ao escrever JSON: %v", err)
+	}
 }
 
 func healthHandler(w http.ResponseWriter, r *http.Request) {
@@ -135,7 +133,7 @@ func healthHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(HealthResponse{Status: "ok"})
+	writeJSON(w, HealthResponse{Status: "ok"})
 }
 
 func dbHealthHandler(w http.ResponseWriter, r *http.Request) {
@@ -146,10 +144,9 @@ func dbHealthHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 
-	err := db.Ping()
-	if err != nil {
+	if err := db.Ping(); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(map[string]string{
+		writeJSON(w, map[string]string{
 			"status": "error",
 			"error":  fmt.Sprintf("Database connection failed: %v", err),
 		})
@@ -157,17 +154,16 @@ func dbHealthHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var count int
-	err = db.QueryRow("SELECT COUNT(*) FROM api_keys").Scan(&count)
-	if err != nil {
+	if err := db.QueryRow("SELECT COUNT(*) FROM api_keys").Scan(&count); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(map[string]string{
+		writeJSON(w, map[string]string{
 			"status": "error",
 			"error":  fmt.Sprintf("Query failed: %v", err),
 		})
 		return
 	}
 
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	writeJSON(w, map[string]interface{}{
 		"status":    "ok",
 		"db_ping":   "success",
 		"key_count": count,
@@ -205,7 +201,7 @@ func validateHandler(w http.ResponseWriter, r *http.Request) {
 	)
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(ValidateResponse{Message: "Chave válida"})
+	writeJSON(w, ValidateResponse{Message: "Chave válida"})
 }
 
 func adminKeysHandler(masterKey string) http.HandlerFunc {
@@ -217,25 +213,19 @@ func adminKeysHandler(masterKey string) http.HandlerFunc {
 
 		token := extractBearerToken(r)
 		if token != masterKey {
-			http.Error(w, "Unauthorized: invalid master key", http.StatusUnauthorized)
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 			return
 		}
 
 		var req CreateKeyRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, "Invalid request body", http.StatusBadRequest)
-			return
-		}
-
-		if req.Name == "" {
-			http.Error(w, "Name is required", http.StatusBadRequest)
+			http.Error(w, "Invalid body", http.StatusBadRequest)
 			return
 		}
 
 		apiKey, err := generateAPIKey()
 		if err != nil {
-			log.Printf("Failed to generate API key: %v", err)
-			http.Error(w, "Internal server error", http.StatusInternalServerError)
+			http.Error(w, "Internal error", http.StatusInternalServerError)
 			return
 		}
 
@@ -247,28 +237,25 @@ func adminKeysHandler(masterKey string) http.HandlerFunc {
 			req.Name, keyHash, keyPrefix,
 		)
 		if err != nil {
-			log.Printf("Failed to insert API key: %v", err)
-			http.Error(w, "Internal server error", http.StatusInternalServerError)
+			http.Error(w, "Internal error", http.StatusInternalServerError)
 			return
 		}
 
-		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusCreated)
-		json.NewEncoder(w).Encode(CreateKeyResponse{
+		writeJSON(w, CreateKeyResponse{
 			Name:    req.Name,
 			Key:     apiKey,
-			Message: "Guarde esta chave com segurança! Você não poderá vê-la novamente.",
+			Message: "Guarde esta chave com segurança!",
 		})
 	}
 }
 
+// utils
+
 func extractBearerToken(r *http.Request) string {
 	auth := r.Header.Get("Authorization")
-	if auth == "" {
-		return ""
-	}
 	parts := strings.SplitN(auth, " ", 2)
-	if len(parts) != 2 || !strings.EqualFold(parts[0], "Bearer") {
+	if len(parts) != 2 {
 		return ""
 	}
 	return strings.TrimSpace(parts[1])
@@ -276,10 +263,8 @@ func extractBearerToken(r *http.Request) string {
 
 func generateAPIKey() (string, error) {
 	bytes := make([]byte, 32)
-	if _, err := rand.Read(bytes); err != nil {
-		return "", fmt.Errorf("failed to generate random bytes: %w", err)
-	}
-	return "tm_key_" + hex.EncodeToString(bytes), nil
+	_, err := rand.Read(bytes)
+	return "tm_key_" + hex.EncodeToString(bytes), err
 }
 
 func hashKey(key string) string {
