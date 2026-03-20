@@ -5,6 +5,10 @@ on:
     branches: [main]
     paths:
       - "auth-service/**"
+  pull_request:
+    branches: [main]
+    paths:
+      - "auth-service/**"
   workflow_dispatch:
 
 env:
@@ -12,189 +16,115 @@ env:
   OCI_REGION: ${{ secrets.OCI_REGION }}
 
 jobs:
+  lint-and-test:
+    name: "Lint & Unit Test"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+          cache-dependency-path: auth-service/go.sum
+
+      - name: Go Lint
+        uses: golangci/golangci-lint-action@v4
+        with:
+          version: latest
+          working-directory: auth-service
+          args: --timeout=5m
+
+      - name: Unit Test
+        run: |
+          cd auth-service
+          go test -v ./...
+
+  security-scan:
+    name: "Security Scan (SAST & SCA)"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run Gosec (SAST)
+        uses: securego/gosec@master
+        with:
+          args: ./auth-service/...
+
+      - name: Run Trivy (SCA - Filesystem)
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: './auth-service'
+          format: 'table'
+          exit-code: '1'
+          severity: 'CRITICAL'
+
   build-and-push:
     name: "Build & Push Image"
     runs-on: ubuntu-latest
-
+    needs: [lint-and-test, security-scan]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Configure OCI Credentials
-        run: |
-          mkdir -p ~/.oci
-          echo "${{ secrets.OCI_PRIVATE_KEY }}" | base64 -d > ~/.oci/oci_api_key.pem
-          chmod 600 ~/.oci/oci_api_key.pem
-
-          cat > ~/.oci/config << EOF
-          [DEFAULT]
-          user=${{ secrets.OCI_USER_OCID }}
-          fingerprint=${{ secrets.OCI_FINGERPRINT }}
-          tenancy=${{ secrets.OCI_TENANCY_OCID }}
-          region=${{ secrets.OCI_REGION }}
-          key_file=/home/runner/.oci/oci_api_key.pem
-          EOF
-
-          chmod 600 ~/.oci/config
-
-      - name: Install OCI CLI
-        run: |
-          curl -L https://raw.githubusercontent.com/oracle/oci-cli/master/scripts/install/install.sh | bash -s -- --accept-all-defaults
-          echo "$HOME/bin" >> $GITHUB_PATH
-
-      - name: Get OCI namespace
-        id: oci-ns
-        run: |
-          NAMESPACE=$(oci os ns get --query 'data' --raw-output)
-          echo "namespace=$NAMESPACE" >> $GITHUB_OUTPUT
-
       - name: Login to OCIR
         run: |
-          NAMESPACE=${{ steps.oci-ns.outputs.namespace }}
-          echo "${{ secrets.OCI_AUTH_TOKEN }}" | docker login ${{ env.OCI_REGION }}.ocir.io \
-            -u "$NAMESPACE/${{ secrets.OCI_USERNAME }}" \
-            --password-stdin
+          echo "${{ secrets.OCI_AUTH_TOKEN }}" | docker login ${{ env.OCI_REGION }}.ocir.io -u "${{ secrets.OCI_TENANCY_NAMESPACE }}/${{ secrets.OCI_USERNAME }}" --password-stdin
 
-      - name: Build and Push Docker image (multi-arch)
+      - name: Build and Scan Image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./auth-service
+          platforms: linux/arm64
+          push: false
+          tags: ${{ env.OCI_REGION }}.ocir.io/${{ secrets.OCI_TENANCY_NAMESPACE }}/togglemaster/${{ env.SERVICE_NAME }}:${{ github.sha }}
+          load: true
+
+      - name: Run Trivy (Container Scan)
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.OCI_REGION }}.ocir.io/${{ secrets.OCI_TENANCY_NAMESPACE }}/togglemaster/${{ env.SERVICE_NAME }}:${{ github.sha }}
+          format: 'table'
+          exit-code: '1'
+          severity: 'CRITICAL'
+
+      - name: Push Image
         run: |
-          NAMESPACE=${{ steps.oci-ns.outputs.namespace }}
-          IMAGE="${{ env.OCI_REGION }}.ocir.io/${NAMESPACE}/togglemaster/${{ env.SERVICE_NAME }}"
+          IMAGE="${{ env.OCI_REGION }}.ocir.io/${{ secrets.OCI_TENANCY_NAMESPACE }}/togglemaster/${{ env.SERVICE_NAME }}"
           TAG="${{ github.sha }}"
+          docker push ${IMAGE}:${TAG}
+          docker tag ${IMAGE}:${TAG} ${IMAGE}:latest
+          docker push ${IMAGE}:latest
 
-          docker buildx build \
-            --platform linux/amd64,linux/arm64 \
-            -t ${IMAGE}:${TAG} \
-            -t ${IMAGE}:latest \
-            --push \
-            ./auth-service
-
-      - name: Cleanup old images (keep last 5)
-        run: |
-          COMPARTMENT_ID=${{ secrets.OCI_COMPARTMENT_ID }}
-          REGION=${{ env.OCI_REGION }}
-          REPO="togglemaster/${{ env.SERVICE_NAME }}"
-
-          echo "🧹 Cleaning old images..."
-
-          oci artifacts container image list \
-            --compartment-id $COMPARTMENT_ID \
-            --repository-name $REPO \
-            --region $REGION \
-            --query "data.items | sort_by(@, &\"time-created\") | reverse(@) | [5:].id" \
-            --raw-output | tr -d '[]",' | tr ' ' '\n' | while read image; do
-
-              [ -z "$image" ] && continue
-
-              echo "🗑️ Deleting old image: $image"
-
-              oci artifacts container image delete \
-                --image-id "$image" \
-                --force \
-                --region $REGION
-          done
-
-      - name: Summary
-        run: |
-          NAMESPACE=${{ steps.oci-ns.outputs.namespace }}
-          echo "### Docker Image Pushed" >> $GITHUB_STEP_SUMMARY
-          echo "- Image: ${{ env.OCI_REGION }}.ocir.io/${NAMESPACE}/togglemaster/${{ env.SERVICE_NAME }}" >> $GITHUB_STEP_SUMMARY
-          echo "- Tag: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
-
-  deploy:
-    name: "Deploy to OKE"
+  update-gitops:
+    name: "Update GitOps Repo"
     runs-on: ubuntu-latest
     needs: build-and-push
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Configure OCI Credentials
+      - name: Update Image Tag
         run: |
-          mkdir -p ~/.oci
-          echo "${{ secrets.OCI_PRIVATE_KEY }}" | base64 -d > ~/.oci/oci_api_key.pem
-          chmod 600 ~/.oci/oci_api_key.pem
+          IMAGE="${{ env.OCI_REGION }}.ocir.io/${{ secrets.OCI_TENANCY_NAMESPACE }}/togglemaster/${{ env.SERVICE_NAME }}:${{ github.sha }}"
+          sed -i "s|image:.*${{ env.SERVICE_NAME }}:.*|image: ${IMAGE}|g" auth-service/k8s/deployment.yaml
 
-          cat > ~/.oci/config << EOF
-          [DEFAULT]
-          user=${{ secrets.OCI_USER_OCID }}
-          fingerprint=${{ secrets.OCI_FINGERPRINT }}
-          tenancy=${{ secrets.OCI_TENANCY_OCID }}
-          region=${{ secrets.OCI_REGION }}
-          key_file=/home/runner/.oci/oci_api_key.pem
-          EOF
-
-          chmod 600 ~/.oci/config
-
-      - name: Install OCI CLI
+      - name: Commit and Push
         run: |
-          curl -L https://raw.githubusercontent.com/oracle/oci-cli/master/scripts/install/install.sh | bash -s -- --accept-all-defaults
-          echo "$HOME/bin" >> $GITHUB_PATH
-
-      - name: Get OKE kubeconfig
-        run: |
-          CLUSTER_ID=$(oci ce cluster list \
-            --compartment-id ${{ secrets.OCI_COMPARTMENT_ID }} \
-            --region ${{ env.OCI_REGION }} \
-            --query "data[0].id" \
-            --raw-output)
-
-          mkdir -p $HOME/.kube
-
-          oci ce cluster create-kubeconfig \
-            --cluster-id $CLUSTER_ID \
-            --file $HOME/.kube/config \
-            --region ${{ env.OCI_REGION }} \
-            --token-version 2.0.0
-
-      - name: Get OCI Namespace
-        id: oci-ns
-        run: |
-          NAMESPACE=$(oci os ns get --query 'data' --raw-output)
-          echo "namespace=$NAMESPACE" >> $GITHUB_OUTPUT
-
-      - name: Create OCIR Pull Secret
-        run: |
-          NAMESPACE=${{ steps.oci-ns.outputs.namespace }}
-
-          kubectl create namespace togglemaster --dry-run=client -o yaml | kubectl apply -f -
-
-          kubectl create secret docker-registry ocir-secret \
-            --namespace=togglemaster \
-            --docker-server=${{ env.OCI_REGION }}.ocir.io \
-            --docker-username="$NAMESPACE/${{ secrets.OCI_USERNAME }}" \
-            --docker-password="${{ secrets.OCI_AUTH_TOKEN }}" \
-            --dry-run=client -o yaml | kubectl apply -f -
-
-      - name: Deploy manifests
-        run: |
-          kubectl apply -f auth-service/k8s/namespace.yaml
-          kubectl apply -f auth-service/k8s/deployment.yaml
-          kubectl apply -f auth-service/k8s/service.yaml
-          kubectl apply -f k8s-common/ingress.yaml
-
-      - name: Update image
-        run: |
-          NAMESPACE=${{ steps.oci-ns.outputs.namespace }}
-          IMAGE="${{ env.OCI_REGION }}.ocir.io/${NAMESPACE}/togglemaster/${{ env.SERVICE_NAME }}:${{ github.sha }}"
-
-          echo "🚀 Deploying image: $IMAGE"
-
-          kubectl set image deployment/auth-service \
-            auth-service=$IMAGE \
-            -n togglemaster
-
-      - name: Wait for rollout
-        run: |
-          kubectl rollout status deployment/auth-service -n togglemaster --timeout=300s
-
-      - name: Get Service Info
-        run: |
-          echo "### Deployment Successful" >> $GITHUB_STEP_SUMMARY
-          kubectl get pods -n togglemaster >> $GITHUB_STEP_SUMMARY
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add auth-service/k8s/deployment.yaml
+          git commit -m "chore(gitops): update ${{ env.SERVICE_NAME }} image to ${{ github.sha }}"
+          git push origin main

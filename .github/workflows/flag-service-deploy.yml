@@ -5,6 +5,10 @@ on:
     branches: [main]
     paths:
       - "flag-service/**"
+  pull_request:
+    branches: [main]
+    paths:
+      - "flag-service/**"
   workflow_dispatch:
 
 env:
@@ -12,15 +16,66 @@ env:
   OCI_REGION: ${{ secrets.OCI_REGION }}
 
 jobs:
-  build-and-push:
-    name: "Build & Push Image"
+  lint-and-test:
+    name: "Lint & Unit Test"
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout
         uses: actions/checkout@v6
 
-      - name: Set up QEMU (for ARM64 cross-build)
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          cd flag-service
+          pip install -r requirements.txt
+          pip install flake8 pytest
+
+      - name: Python Lint
+        run: |
+          cd flag-service
+          flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+
+      - name: Unit Test
+        run: |
+          cd flag-service
+          pytest
+
+  security-scan:
+    name: "Security Scan (SAST & SCA)"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Run Bandit (SAST)
+        run: |
+          pip install bandit
+          bandit -r flag-service/
+
+      - name: Run Trivy (SCA - Filesystem)
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: './flag-service'
+          format: 'table'
+          exit-code: '1'
+          severity: 'CRITICAL'
+
+  build-and-push:
+    name: "Build & Push Image"
+    runs-on: ubuntu-latest
+    needs: [lint-and-test, security-scan]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
         with:
           platforms: arm64
@@ -28,166 +83,52 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
 
-      - name: Configure OCI Credentials
-        run: |
-          mkdir -p ~/.oci
-          echo "${{ secrets.OCI_PRIVATE_KEY }}" | base64 -d > ~/.oci/oci_api_key.pem
-          chmod 600 ~/.oci/oci_api_key.pem
-
-          cat > ~/.oci/config << EOF
-          [DEFAULT]
-          user=${{ secrets.OCI_USER_OCID }}
-          fingerprint=${{ secrets.OCI_FINGERPRINT }}
-          tenancy=${{ secrets.OCI_TENANCY_OCID }}
-          region=${{ secrets.OCI_REGION }}
-          key_file=/home/runner/.oci/oci_api_key.pem
-
-          EOF
-
-          sed -i 's/^[[:space:]]*//' ~/.oci/config
-          chmod 600 ~/.oci/config
-
-      - name: Install OCI CLI
-        run: |
-          curl -L https://raw.githubusercontent.com/oracle/oci-cli/master/scripts/install/install.sh | bash -s -- --accept-all-defaults
-          echo "$HOME/bin" >> $GITHUB_PATH
-
-      - name: Get OCI namespace
-        id: oci-ns
-        run: |
-          NAMESPACE=$($HOME/bin/oci os ns get --query 'data' --raw-output)
-          echo "namespace=$NAMESPACE" >> $GITHUB_OUTPUT
-
-      - name: Validate OCIR secrets
-        run: |
-          if [ -z "${{ secrets.OCI_AUTH_TOKEN }}" ]; then
-            echo "::error::OCI_AUTH_TOKEN secret is not configured."
-            exit 1
-          fi
-          if [ -z "${{ secrets.OCI_USERNAME }}" ]; then
-            echo "::error::OCI_USERNAME secret is not configured."
-            exit 1
-          fi
-
       - name: Login to OCIR
         run: |
-          NAMESPACE=${{ steps.oci-ns.outputs.namespace }}
-          echo "${{ secrets.OCI_AUTH_TOKEN }}" | docker login ${{ env.OCI_REGION }}.ocir.io -u "$NAMESPACE/${{ secrets.OCI_USERNAME }}" --password-stdin
+          echo "${{ secrets.OCI_AUTH_TOKEN }}" | docker login ${{ env.OCI_REGION }}.ocir.io -u "${{ secrets.OCI_TENANCY_NAMESPACE }}/${{ secrets.OCI_USERNAME }}" --password-stdin
 
-      - name: Build and Push Docker image (ARM64)
+      - name: Build and Scan Image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./flag-service
+          platforms: linux/arm64
+          push: false
+          tags: ${{ env.OCI_REGION }}.ocir.io/${{ secrets.OCI_TENANCY_NAMESPACE }}/togglemaster/${{ env.SERVICE_NAME }}:${{ github.sha }}
+          load: true
+
+      - name: Run Trivy (Container Scan)
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.OCI_REGION }}.ocir.io/${{ secrets.OCI_TENANCY_NAMESPACE }}/togglemaster/${{ env.SERVICE_NAME }}:${{ github.sha }}
+          format: 'table'
+          exit-code: '1'
+          severity: 'CRITICAL'
+
+      - name: Push Image
         run: |
-          NAMESPACE=${{ steps.oci-ns.outputs.namespace }}
-          IMAGE="${{ env.OCI_REGION }}.ocir.io/${NAMESPACE}/togglemaster/${{ env.SERVICE_NAME }}"
+          IMAGE="${{ env.OCI_REGION }}.ocir.io/${{ secrets.OCI_TENANCY_NAMESPACE }}/togglemaster/${{ env.SERVICE_NAME }}"
           TAG="${{ github.sha }}"
+          docker push ${IMAGE}:${TAG}
+          docker tag ${IMAGE}:${TAG} ${IMAGE}:latest
+          docker push ${IMAGE}:latest
 
-          docker buildx build \
-            --platform linux/arm64 \
-            -t ${IMAGE}:${TAG} \
-            -t ${IMAGE}:latest \
-            --push \
-            ./flag-service
-
-      - name: Summary
-        run: |
-          NAMESPACE=${{ steps.oci-ns.outputs.namespace }}
-          echo "### Docker Image Pushed" >> $GITHUB_STEP_SUMMARY
-          echo "- **Image:** ${{ env.OCI_REGION }}.ocir.io/${NAMESPACE}/togglemaster/${{ env.SERVICE_NAME }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Tag:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
-
-  deploy:
-    name: "Deploy to OKE"
+  update-gitops:
+    name: "Update GitOps Repo"
     runs-on: ubuntu-latest
     needs: build-and-push
-    environment: dev
-
     steps:
       - name: Checkout
         uses: actions/checkout@v6
 
-      - name: Configure OCI Credentials
+      - name: Update Image Tag
         run: |
-          mkdir -p ~/.oci
-          echo "${{ secrets.OCI_PRIVATE_KEY }}" | base64 -d > ~/.oci/oci_api_key.pem
-          chmod 600 ~/.oci/oci_api_key.pem
+          IMAGE="${{ env.OCI_REGION }}.ocir.io/${{ secrets.OCI_TENANCY_NAMESPACE }}/togglemaster/${{ env.SERVICE_NAME }}:${{ github.sha }}"
+          sed -i "s|image:.*${{ env.SERVICE_NAME }}:.*|image: ${IMAGE}|g" flag-service/k8s/deployment.yaml
 
-          cat > ~/.oci/config << EOF
-          [DEFAULT]
-          user=${{ secrets.OCI_USER_OCID }}
-          fingerprint=${{ secrets.OCI_FINGERPRINT }}
-          tenancy=${{ secrets.OCI_TENANCY_OCID }}
-          region=${{ secrets.OCI_REGION }}
-          key_file=/home/runner/.oci/oci_api_key.pem
-
-          EOF
-
-          sed -i 's/^[[:space:]]*//' ~/.oci/config
-          chmod 600 ~/.oci/config
-
-      - name: Install OCI CLI
+      - name: Commit and Push
         run: |
-          curl -L https://raw.githubusercontent.com/oracle/oci-cli/master/scripts/install/install.sh | bash -s -- --accept-all-defaults
-          echo "$HOME/bin" >> $GITHUB_PATH
-
-      - name: Test OCI CLI
-        run: |
-          oci os ns get --region ${{ env.OCI_REGION }}
-
-      - name: Get OKE Cluster kubeconfig
-        run: |
-          CLUSTER_ID=$(oci ce cluster list \
-            --compartment-id ${{ secrets.OCI_COMPARTMENT_ID }} \
-            --region ${{ env.OCI_REGION }} \
-            --lifecycle-state ACTIVE \
-            --query "data[?name=='togglemaster-oke'].id | [0]" \
-            --raw-output)
-
-          echo "Cluster ID: $CLUSTER_ID"
-
-          mkdir -p $HOME/.kube
-
-          oci ce cluster create-kubeconfig \
-            --cluster-id $CLUSTER_ID \
-            --file $HOME/.kube/config \
-            --region ${{ env.OCI_REGION }} \
-            --token-version 2.0.0
-
-      - name: Get OCI Namespace
-        id: oci-ns
-        run: |
-          NAMESPACE=$($HOME/bin/oci os ns get --query 'data' --raw-output)
-          echo "namespace=$NAMESPACE" >> $GITHUB_OUTPUT
-
-      - name: Update deployment image tag
-        run: |
-          NAMESPACE=${{ steps.oci-ns.outputs.namespace }}
-          IMAGE="${{ env.OCI_REGION }}.ocir.io/${NAMESPACE}/togglemaster/${{ env.SERVICE_NAME }}:${{ github.sha }}"
-          sed -i "s|REGION.ocir.io/NAMESPACE/togglemaster/flag-service:latest|${IMAGE}|g" flag-service/k8s/deployment.yaml
-
-      - name: Create OCIR Pull Secret
-        run: |
-          NAMESPACE=${{ steps.oci-ns.outputs.namespace }}
-          kubectl create namespace togglemaster --dry-run=client -o yaml | kubectl apply --validate=false -f -
-          kubectl create secret docker-registry ocir-secret \
-            --namespace=togglemaster \
-            --docker-server=${{ env.OCI_REGION }}.ocir.io \
-            --docker-username="$NAMESPACE/${{ secrets.OCI_USERNAME }}" \
-            --docker-password="${{ secrets.OCI_AUTH_TOKEN }}" \
-            --dry-run=client -o yaml | kubectl apply --validate=false -f -
-
-      - name: Deploy to OKE
-        run: |
-          kubectl apply --validate=false -f flag-service/k8s/namespace.yaml
-          kubectl apply --validate=false -f flag-service/k8s/secret.yaml
-          kubectl apply --validate=false -f flag-service/k8s/deployment.yaml
-          kubectl apply --validate=false -f flag-service/k8s/service.yaml
-          kubectl apply --validate=false -f k8s-common/ingress.yaml
-
-      - name: Wait for Rollout
-        run: |
-          kubectl rollout status deployment/flag-service -n togglemaster --timeout=120s
-
-      - name: Get Service URL
-        run: |
-          echo "### Deployment Successful" >> $GITHUB_STEP_SUMMARY
-          echo "Waiting for Service IP..." >> $GITHUB_STEP_SUMMARY
-          kubectl get svc flag-service -n togglemaster -o wide
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add flag-service/k8s/deployment.yaml
+          git commit -m "chore(gitops): update ${{ env.SERVICE_NAME }} image to ${{ github.sha }}"
+          git push origin main
