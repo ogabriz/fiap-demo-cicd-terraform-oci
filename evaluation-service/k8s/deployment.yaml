@@ -34,7 +34,7 @@ spec:
             capabilities:
               drop:
                 - ALL
-          image: REGION.ocir.io/NAMESPACE/togglemaster/evaluation-service:v1.0.0
+          image: sa-saopaulo-1.ocir.io/grqkmwwimskh/togglemaster/evaluation-service:d0cb295b0dcf185fc4de8a2d18fb4cc6d20d3392
           ports:
             - containerPort: 8004
               protocol: TCP
