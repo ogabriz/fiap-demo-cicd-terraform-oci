@@ -1,3 +1,12 @@
+terraform {
+  required_providers {
+    oci = {
+      source  = "oracle/oci"
+      version = ">= 5.0.0"
+    }
+  }
+}
+
 resource "oci_queue_queue" "main" {
 
   compartment_id = var.compartment_id
