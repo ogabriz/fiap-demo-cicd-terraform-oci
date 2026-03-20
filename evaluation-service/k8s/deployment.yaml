@@ -19,7 +19,7 @@ spec:
         - name: ocir-secret
       containers:
         - name: evaluation-service
-          image: REGION.ocir.io/NAMESPACE/togglemaster/evaluation-service:latest
+          image: sa-saopaulo-1.ocir.io/griog4pa3yfi/togglemaster/evaluation-service:0b57081075e69f69d7880c2591009e177749a381
           ports:
             - containerPort: 8004
               protocol: TCP
