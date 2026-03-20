@@ -15,11 +15,27 @@ spec:
       labels:
         app: analytics-service
     spec:
+      # 1. Pod-level security context
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
       imagePullSecrets:
         - name: ocir-secret
       containers:
         - name: analytics-service
-          image: REGION.ocir.io/NAMESPACE/togglemaster/analytics-service:latest
+          image: REGION.ocir.io/NAMESPACE/togglemaster/analytics-service:v1.0.0
+          # 2. Container-level security context
+          securityContext:
+            allowPrivilegeEscalation: false
+            privileged: false
+            runAsNonRoot: true
+            runAsUser: 10001
+            runAsGroup: 10001
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
           ports:
             - containerPort: 8005
               protocol: TCP
