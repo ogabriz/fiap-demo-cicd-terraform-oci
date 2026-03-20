@@ -26,10 +26,12 @@ func (a *App) healthHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(code)
-	json.NewEncoder(w).Encode(map[string]string{
+	if err := json.NewEncoder(w).Encode(map[string]string{
 		"status": status,
 		"redis":  fmt.Sprintf("%v", a.RedisClient != nil),
-	})
+	}); err != nil {
+		log.Printf("Erro ao encodar health response: %v", err)
+	}
 }
 
 func (a *App) evaluationHandler(w http.ResponseWriter, r *http.Request) {
@@ -64,9 +66,11 @@ func (a *App) evaluationHandler(w http.ResponseWriter, r *http.Request) {
 
 	// 4. Retornar a resposta
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(EvaluationResponse{
+	if err := json.NewEncoder(w).Encode(EvaluationResponse{
 		FlagName: flagName,
 		UserID:   userID,
 		Result:   result,
-	})
+	}); err != nil {
+		log.Printf("Erro ao encodar evaluation response: %v", err)
+	}
 }
