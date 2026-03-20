@@ -9,9 +9,22 @@ metadata:
 spec:
   template:
     spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: db-init
           image: postgres:16-alpine
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
           command: ["psql"]
           args:
             - "$(DATABASE_URL)"
@@ -26,6 +39,13 @@ spec:
           volumeMounts:
             - name: init-scripts
               mountPath: /scripts
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "64Mi"
+            limits:
+              cpu: "250m"
+              memory: "128Mi"
       volumes:
         - name: init-scripts
           configMap:
