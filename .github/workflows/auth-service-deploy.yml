@@ -23,19 +23,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Get Hash
-        id: hash
-        run: echo "git_hash=$(git rev-parse --short "$GITHUB_SHA")" >> $GITHUB_HASH
-
-      - name: Check Hash
-        run: echo "${{ env.hash }}"
-
-      - name: Tag
-        uses: christophebedard/tag-version-commit@v1
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          version_tag_prefix: "v"
-
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
