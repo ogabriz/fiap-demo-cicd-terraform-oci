@@ -31,3 +31,7 @@ Thumbs.db
 *.log
 plan.txt
 outputs.json
+
+# Go binaries
+auth-service/auth-service
+evaluation-service/evaluation-service
