@@ -23,10 +23,23 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Get Hash
+        id: hash
+        run: echo "git_hash=$(git rev-parse --short "$GITHUB_SHA")" >> $GITHUB_HASH
+
+      - name: Check Hash
+        run: echo "${{ env.hash }}"
+
+      - name: Tag
+        uses: christophebedard/tag-version-commit@v1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          version_tag_prefix: "v"
+
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.21'
+          go-version: "1.21"
           cache-dependency-path: auth-service/go.sum
 
       - name: Go Lint
@@ -56,11 +69,11 @@ jobs:
       - name: Run Trivy (SCA - Filesystem)
         uses: aquasecurity/trivy-action@master
         with:
-          scan-type: 'fs'
-          scan-ref: './auth-service'
-          format: 'table'
-          exit-code: '1'
-          severity: 'CRITICAL'
+          scan-type: "fs"
+          scan-ref: "./auth-service"
+          format: "table"
+          exit-code: "1"
+          severity: "CRITICAL"
 
   build-and-push:
     name: "Build & Push Image"
@@ -96,9 +109,9 @@ jobs:
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: ${{ env.OCI_REGION }}.ocir.io/${{ secrets.OCI_TENANCY_NAMESPACE }}/togglemaster/${{ env.SERVICE_NAME }}:${{ github.sha }}
-          format: 'table'
-          exit-code: '1'
-          severity: 'CRITICAL'
+          format: "table"
+          exit-code: "1"
+          severity: "CRITICAL"
 
       - name: Push Image
         run: |
