@@ -14,20 +14,20 @@ import (
 )
 
 const (
-	// Tempo de vida do cache em segundos
-	CACHE_TTL = 30 * time.Second
+	// flagInfoCacheTTL is the time-to-live for cached flag evaluation data
+	flagInfoCacheTTL = 30 * time.Second
 )
 
 // getDecision é o wrapper principal
 func (a *App) getDecision(userID, flagName string) (bool, error) {
 	// 1. Obter os dados da flag (do cache ou dos serviços)
-	info, err := a.getCombinedFlagInfo(flagName)
+	flagInfo, err := a.getCombinedFlagInfo(flagName)
 	if err != nil {
 		return false, err
 	}
 
 	// 2. Executar a lógica de avaliação
-	return a.runEvaluationLogic(info, userID), nil
+	return a.runEvaluationLogic(flagInfo, userID), nil
 }
 
 // getCombinedFlagInfo busca os dados no Redis, com fallback para os microsserviços
@@ -62,7 +62,7 @@ func (a *App) getCombinedFlagInfo(flagName string) (*CombinedFlagInfo, error) {
 	if a.RedisClient != nil {
 		jsonData, err := json.Marshal(info)
 		if err == nil {
-			if err := a.RedisClient.Set(ctx, cacheKey, jsonData, CACHE_TTL).Err(); err != nil {
+			if err := a.RedisClient.Set(ctx, cacheKey, jsonData, flagInfoCacheTTL).Err(); err != nil {
 				log.Printf("Erro ao salvar cache no Redis para flag '%s': %v", flagName, err)
 			}
 		}
@@ -210,14 +210,14 @@ func (a *App) runEvaluationLogic(info *CombinedFlagInfo, userID string) bool {
 }
 
 func getDeterministicBucket(input string) int {
-	// Usamos SHA1 (rápido) e pegamos os primeiros 4 bytes
+	// Use SHA1 (fast) and take the first 4 bytes to compute the bucket
 	hasher := sha1.New()
 	hasher.Write([]byte(input))
 	hash := hasher.Sum(nil)
 
-	// Converte 4 bytes para um uint32
-	val := binary.BigEndian.Uint32(hash[:4])
+	// Convert 4 bytes to a uint32 value
+	hashUint32 := binary.BigEndian.Uint32(hash[:4])
 
-	// Retorna o módulo 100
-	return int(val % 100)
+	// Return modulo 100 to get a bucket in range [0, 99]
+	return int(hashUint32 % 100)
 }
