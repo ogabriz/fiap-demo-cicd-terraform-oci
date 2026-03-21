@@ -24,7 +24,7 @@ spec:
         - name: ocir-secret
       containers:
         - name: auth-service
-          image: sa-saopaulo-1.ocir.io/grqkmwwimskh/togglemaster/auth-service:8fe32043ffaa9642bdf700d77c7419e08ad0c9d3
+          image: sa-saopaulo-1.ocir.io/grqkmwwimskh/togglemaster/auth-service:eff68719a7b54bf181c219693f3994dfdc471c8a
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true
