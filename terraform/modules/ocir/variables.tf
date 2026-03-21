@@ -1,3 +1,4 @@
 variable "compartment_id" {
-  type = string
+  description = "OCID of the OCI compartment where container image repositories (OCIR) will be created"
+  type        = string
 }

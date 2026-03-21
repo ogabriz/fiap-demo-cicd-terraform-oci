@@ -184,11 +184,11 @@ func validateHandler(w http.ResponseWriter, r *http.Request) {
 
 	keyHash := hashKey(apiKey)
 
-	var id int
+	var keyID int
 	err := db.QueryRow(
 		"SELECT id FROM api_keys WHERE key_hash = $1 AND is_active = true",
 		keyHash,
-	).Scan(&id)
+	).Scan(&keyID)
 
 	if err != nil {
 		http.Error(w, "Chave de API inválida ou inativa", http.StatusUnauthorized)
@@ -197,7 +197,7 @@ func validateHandler(w http.ResponseWriter, r *http.Request) {
 
 	_, _ = db.Exec(
 		"UPDATE api_keys SET last_used_at = CURRENT_TIMESTAMP WHERE id = $1",
-		id,
+		keyID,
 	)
 
 	w.Header().Set("Content-Type", "application/json")
@@ -262,9 +262,9 @@ func extractBearerToken(r *http.Request) string {
 }
 
 func generateAPIKey() (string, error) {
-	bytes := make([]byte, 32)
-	_, err := rand.Read(bytes)
-	return "tm_key_" + hex.EncodeToString(bytes), err
+	randomBytes := make([]byte, 32)
+	_, err := rand.Read(randomBytes)
+	return "tm_key_" + hex.EncodeToString(randomBytes), err
 }
 
 func hashKey(key string) string {

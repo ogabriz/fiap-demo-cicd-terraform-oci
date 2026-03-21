@@ -1,3 +1,4 @@
 variable "compartment_id" {
-  type = string
+  description = "OCID of the OCI compartment where networking resources (VCN, subnets, gateways) will be created"
+  type        = string
 }
