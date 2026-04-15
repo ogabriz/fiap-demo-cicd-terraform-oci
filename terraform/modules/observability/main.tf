@@ -46,7 +46,7 @@ grafana:
 EOF
   ]
 
-  depends_on = [kubernetes_namespace.monitoring]
+  depends_on = [kubernetes_namespace_v1.monitoring]
 }
 
 resource "helm_release" "loki_stack" {
