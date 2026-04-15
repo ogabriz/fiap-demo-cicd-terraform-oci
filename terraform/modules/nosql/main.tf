@@ -12,7 +12,7 @@ resource "oci_nosql_table" "main" {
   name           = var.table_name
 
   ddl_statement = <<DDL
-CREATE TABLE ${var.table_name} (
+CREATE TABLE IF NOT EXISTS ${var.table_name} (
   id STRING,
   name STRING,
   created_at STRING,

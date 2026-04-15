@@ -1,4 +1,4 @@
-resource "kubernetes_namespace" "monitoring" {
+resource "kubernetes_namespace_v1" "monitoring" {
   metadata {
     name = var.namespace
   }
@@ -8,7 +8,7 @@ resource "helm_release" "prometheus_stack" {
   name       = "prometheus-stack"
   repository = "https://prometheus-community.github.io/helm-charts"
   chart      = "kube-prometheus-stack"
-  namespace  = kubernetes_namespace.monitoring.metadata[0].name
+  namespace  = kubernetes_namespace_v1.monitoring.metadata[0].name
   version    = "69.3.2"
 
   values = [<<EOF
@@ -53,7 +53,7 @@ resource "helm_release" "loki_stack" {
   name       = "loki-stack"
   repository = "https://grafana.github.io/helm-charts"
   chart      = "loki-stack"
-  namespace  = kubernetes_namespace.monitoring.metadata[0].name
+  namespace  = kubernetes_namespace_v1.monitoring.metadata[0].name
   version    = "2.10.2"
 
   values = [<<EOF
@@ -69,13 +69,13 @@ promtail:
 EOF
   ]
 
-  depends_on = [kubernetes_namespace.monitoring]
+  depends_on = [kubernetes_namespace_v1.monitoring]
 }
 
 resource "kubernetes_config_map" "grafana_dashboard_custom" {
   metadata {
     name      = "grafana-dashboard-custom"
-    namespace = kubernetes_namespace.monitoring.metadata[0].name
+    namespace = kubernetes_namespace_v1.monitoring.metadata[0].name
     labels = {
       grafana_dashboard = "1"
     }

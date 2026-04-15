@@ -42,7 +42,7 @@ provider "kubernetes" {
   cluster_ca_certificate = base64decode(local.kubeconfig.clusters[0].cluster.certificate-authority-data)
 
   exec {
-    api_version = "client.authentication.k8s.io/v1"
+    api_version = "client.authentication.k8s.io/v1beta1"
     command     = "oci"
     args        = ["ce", "cluster", "generate-token", "--cluster-id", module.oke.cluster_id]
   }
@@ -54,7 +54,7 @@ provider "kubectl" {
   load_config_file       = false
 
   exec {
-    api_version = "client.authentication.k8s.io/v1"
+    api_version = "client.authentication.k8s.io/v1beta1"
     command     = "oci"
     args        = ["ce", "cluster", "generate-token", "--cluster-id", module.oke.cluster_id]
   }
@@ -66,7 +66,7 @@ provider "helm" {
     cluster_ca_certificate = base64decode(local.kubeconfig.clusters[0].cluster.certificate-authority-data)
 
     exec = {
-      api_version = "client.authentication.k8s.io/v1"
+      api_version = "client.authentication.k8s.io/v1beta1"
       command     = "oci"
       args        = ["ce", "cluster", "generate-token", "--cluster-id", module.oke.cluster_id]
     }
