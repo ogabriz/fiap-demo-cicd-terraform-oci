@@ -52,3 +52,9 @@ module "oke" {
   node_subnet_id = module.networking.node_subnet_id
   lb_subnet_id   = module.networking.lb_subnet_id
 }
+
+module "observability" {
+  source     = "./modules/observability"
+  cluster_id = module.oke.cluster_id
+  namespace  = "monitoring"
+}
