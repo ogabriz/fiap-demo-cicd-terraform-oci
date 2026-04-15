@@ -10,6 +10,9 @@ resource "helm_release" "prometheus_stack" {
   chart      = "kube-prometheus-stack"
   namespace  = kubernetes_namespace_v1.monitoring.metadata[0].name
   version    = "69.3.2"
+  timeout    = 900
+  force_update    = true
+  cleanup_on_fail = true
 
   values = [<<EOF
 grafana:
@@ -55,6 +58,9 @@ resource "helm_release" "loki_stack" {
   chart      = "loki-stack"
   namespace  = kubernetes_namespace_v1.monitoring.metadata[0].name
   version    = "2.10.2"
+  timeout    = 600
+  force_update    = true
+  cleanup_on_fail = true
 
   values = [<<EOF
 loki:

@@ -5,6 +5,9 @@ resource "helm_release" "argocd" {
   namespace        = "argocd"
   create_namespace = true
   version          = "7.7.1"
+  timeout          = 600
+  force_update     = true
+  cleanup_on_fail  = true
 
   values = [<<EOF
 server:
