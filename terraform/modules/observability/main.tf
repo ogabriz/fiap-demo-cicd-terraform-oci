@@ -10,10 +10,11 @@ resource "helm_release" "prometheus_stack" {
   chart      = "kube-prometheus-stack"
   namespace  = kubernetes_namespace_v1.monitoring.metadata[0].name
   version    = "69.3.2"
-  timeout         = 900
+  timeout         = 1200
   force_update    = true
   cleanup_on_fail = true
   replace         = true
+  wait            = false
 
   values = [<<EOF
 grafana:

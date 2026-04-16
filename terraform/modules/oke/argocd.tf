@@ -9,6 +9,7 @@ resource "helm_release" "argocd" {
   force_update     = true
   cleanup_on_fail  = true
   replace          = true
+  wait             = false
 
   values = [<<EOF
 server:
