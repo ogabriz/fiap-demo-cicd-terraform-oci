@@ -81,7 +81,7 @@ EOF
   depends_on = [kubernetes_namespace_v1.monitoring]
 }
 
-resource "kubernetes_config_map" "grafana_dashboard_custom" {
+resource "kubernetes_config_map_v1" "grafana_dashboard_custom" {
   metadata {
     name      = "grafana-dashboard-custom"
     namespace = kubernetes_namespace_v1.monitoring.metadata[0].name
