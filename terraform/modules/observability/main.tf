@@ -105,6 +105,11 @@ resource "helm_release" "redis_exporter" {
   chart      = "prometheus-redis-exporter"
   namespace  = kubernetes_namespace_v1.monitoring.metadata[0].name
   version    = "6.1.1"
+  timeout    = 600
+  wait       = false
+  force_update    = true
+  cleanup_on_fail = true
+  replace         = true
 
   values = [<<EOF
 redisAddress: "redis://${var.redis_host}:6379"
