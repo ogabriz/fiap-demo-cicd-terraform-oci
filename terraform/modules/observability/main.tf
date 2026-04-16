@@ -99,6 +99,29 @@ resource "kubernetes_config_map_v1" "grafana_dashboard_custom" {
   depends_on = [helm_release.prometheus_stack]
 }
 
+resource "kubectl_manifest" "nginx_ingress_servicemonitor" {
+  yaml_body = <<EOF
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: nginx-ingress-controller
+  namespace: monitoring
+  labels:
+    release: prometheus-stack
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: ingress-nginx
+  namespaceSelector:
+    any: true
+  endpoints:
+    - port: metrics
+      interval: 30s
+EOF
+
+  depends_on = [helm_release.prometheus_stack]
+}
+
 resource "helm_release" "redis_exporter" {
   name       = "redis-exporter"
   repository = "https://prometheus-community.github.io/helm-charts"
