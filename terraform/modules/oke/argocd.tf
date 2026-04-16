@@ -19,6 +19,7 @@ server:
       service.beta.kubernetes.io/oci-load-balancer-shape: flexible
       service.beta.kubernetes.io/oci-load-balancer-shape-flex-min: "10"
       service.beta.kubernetes.io/oci-load-balancer-shape-flex-max: "10"
+      service.beta.kubernetes.io/oci-load-balancer-backend-protocol: "HTTP"
   extraArgs:
     - --insecure
 EOF
