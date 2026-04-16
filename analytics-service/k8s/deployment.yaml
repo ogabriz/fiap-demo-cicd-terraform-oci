@@ -24,7 +24,7 @@ spec:
         - name: ocir-secret
       containers:
         - name: analytics-service
-          image: REGION.ocir.io/NAMESPACE/togglemaster/analytics-service:v1.0.0
+          image: sa-saopaulo-1.ocir.io/grqkmwwimskh/togglemaster/analytics-service:v1.0.0
           # 2. Container-level security context
           securityContext:
             allowPrivilegeEscalation: false
