@@ -48,6 +48,8 @@ grafana:
     type: LoadBalancer
     annotations:
       service.beta.kubernetes.io/oci-load-balancer-shape: flexible
+      service.beta.kubernetes.io/oci-load-balancer-shape-flex-min: "10"
+      service.beta.kubernetes.io/oci-load-balancer-shape-flex-max: "10"
 EOF
   ]
 
@@ -93,6 +95,25 @@ resource "kubernetes_config_map_v1" "grafana_dashboard_custom" {
   data = {
     "custom-dashboard.json" = file("${path.module}/dashboards/custom-dashboard.json")
   }
+
+  depends_on = [helm_release.prometheus_stack]
+}
+
+resource "helm_release" "redis_exporter" {
+  name       = "redis-exporter"
+  repository = "https://prometheus-community.github.io/helm-charts"
+  chart      = "prometheus-redis-exporter"
+  namespace  = kubernetes_namespace_v1.monitoring.metadata[0].name
+  version    = "6.1.1"
+
+  values = [<<EOF
+redisAddress: "redis://${var.redis_host}:6379"
+serviceMonitor:
+  enabled: true
+  labels:
+    release: prometheus-stack
+EOF
+  ]
 
   depends_on = [helm_release.prometheus_stack]
 }
