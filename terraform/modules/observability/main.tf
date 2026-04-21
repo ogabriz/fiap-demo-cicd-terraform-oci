@@ -154,7 +154,7 @@ resource "helm_release" "redis_exporter" {
   values = [<<EOF
 image:
   repository: oliver006/redis_exporter
-  tag: v1.63.0
+  tag: v1.61.0
 redisAddress: "redis://${var.redis_host}:6379"
 serviceMonitor:
   enabled: true
