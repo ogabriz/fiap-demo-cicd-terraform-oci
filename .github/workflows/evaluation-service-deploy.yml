@@ -26,13 +26,12 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.25'
+          go-version: '1.23'
           cache-dependency-path: evaluation-service/go.sum
 
-      - name: Workaround for golangci-lint
+      - name: Go Mod Tidy
         run: |
           cd evaluation-service
-          sed -i 's/^go 1.2.*/go 1.24.0/' go.mod
           go mod tidy
 
       - name: Go Lint
