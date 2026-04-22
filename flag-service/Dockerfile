@@ -21,4 +21,4 @@ HEALTHCHECK --interval=30s --timeout=10s --retries=3 \
 
 EXPOSE 8002
 
-CMD ["gunicorn", "--bind", "0.0.0.0:8002", "--workers", "1", "--timeout", "300", "app:app"]
+CMD ["opentelemetry-instrument", "gunicorn", "--bind", "0.0.0.0:8002", "--workers", "1", "--timeout", "300", "app:app"]

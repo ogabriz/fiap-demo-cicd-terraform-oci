@@ -15,6 +15,7 @@ import (
 
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
 var db *sql.DB
@@ -39,6 +40,10 @@ type ValidateResponse struct {
 
 func main() {
 	_ = godotenv.Load()
+
+	// OpenTelemetry init
+	shutdown := initTracer()
+	defer shutdown(context.Background())
 
 	databaseURL := os.Getenv("DATABASE_URL")
 	if databaseURL == "" {
@@ -88,10 +93,10 @@ func main() {
 	}
 
 	mux := http.NewServeMux()
-	mux.HandleFunc("/health", healthHandler)
-	mux.HandleFunc("/health/db", dbHealthHandler)
-	mux.HandleFunc("/validate", validateHandler)
-	mux.HandleFunc("/admin/keys", adminKeysHandler(masterKey))
+	mux.Handle("/health", otelhttp.NewHandler(http.HandlerFunc(healthHandler), "health"))
+	mux.Handle("/health/db", otelhttp.NewHandler(http.HandlerFunc(dbHealthHandler), "db-health"))
+	mux.Handle("/validate", otelhttp.NewHandler(http.HandlerFunc(validateHandler), "validate"))
+	mux.Handle("/admin/keys", otelhttp.NewHandler(http.HandlerFunc(adminKeysHandler(masterKey)), "admin-keys"))
 
 	log.Printf("Auth service starting on port %s", port)
 	if err := http.ListenAndServe(":"+port, mux); err != nil {

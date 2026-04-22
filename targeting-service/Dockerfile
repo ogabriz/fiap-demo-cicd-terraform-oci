@@ -19,4 +19,4 @@ EXPOSE 8003
 HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
   CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8003/health')" || exit 1
 
-CMD ["gunicorn", "--bind", "0.0.0.0:8003", "--workers", "1", "--timeout", "300", "app:app"]
+CMD ["opentelemetry-instrument", "gunicorn", "--bind", "0.0.0.0:8003", "--workers", "1", "--timeout", "300", "app:app"]

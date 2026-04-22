@@ -42,6 +42,17 @@ spec:
           env:
             - name: PORT
               value: "8005"
+            - name: OTEL_SERVICE_NAME
+              value: "analytics-service"
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: "https://otlp.nr-data.net"
+            - name: NEW_RELIC_LICENSE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: newrelic-secret
+                  key: license-key
+            - name: OTEL_EXPORTER_OTLP_HEADERS
+              value: "api-key=$(NEW_RELIC_LICENSE_KEY)"
             - name: OCI_QUEUE_ENDPOINT
               valueFrom:
                 secretKeyRef:

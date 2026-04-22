@@ -12,6 +12,7 @@ import (
 	"github.com/oracle/oci-go-sdk/v65/common"
 	"github.com/oracle/oci-go-sdk/v65/common/auth"
 	"github.com/oracle/oci-go-sdk/v65/queue"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
 // Contexto global para o Redis
@@ -31,6 +32,10 @@ type App struct {
 func main() {
 	_ = godotenv.Load() // Carrega .env para dev local
 
+	// OpenTelemetry init
+	shutdown := initTracer()
+	defer shutdown(context.Background())
+
 	// --- Configuração ---
 	port := os.Getenv("PORT")
 	if port == "" {
@@ -48,9 +53,10 @@ func main() {
 		log.Println("AVISO: SERVICE_API_KEY não configurada ou com valor padrão. As chamadas aos outros serviços irão falhar (401).")
 	}
 
-	// Cliente HTTP (com timeout)
+	// Cliente HTTP (com instrumentação OpenTelemetry)
 	httpClient := &http.Client{
-		Timeout: 5 * time.Second,
+		Timeout:   5 * time.Second,
+		Transport: otelhttp.NewTransport(http.DefaultTransport),
 	}
 
 	// Cria a instância da App (inicialmente não pronta)
@@ -62,10 +68,10 @@ func main() {
 		IsReady:             false,
 	}
 
-	// --- Rotas ---
+	// --- Rotas com instrumentação OTel ---
 	mux := http.NewServeMux()
-	mux.HandleFunc("/health", app.healthHandler)
-	mux.HandleFunc("/evaluate", app.evaluationHandler)
+	mux.Handle("/health", otelhttp.NewHandler(http.HandlerFunc(app.healthHandler), "health"))
+	mux.Handle("/evaluate", otelhttp.NewHandler(http.HandlerFunc(app.evaluationHandler), "evaluate"))
 
 	// Inicia o servidor em uma goroutine para não bloquear a inicialização
 	go func() {

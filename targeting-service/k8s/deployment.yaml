@@ -49,6 +49,17 @@ spec:
                   key: AUTH_SERVICE_URL
             - name: PORT
               value: "8003"
+            - name: OTEL_SERVICE_NAME
+              value: "targeting-service"
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: "https://otlp.nr-data.net"
+            - name: NEW_RELIC_LICENSE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: newrelic-secret
+                  key: license-key
+            - name: OTEL_EXPORTER_OTLP_HEADERS
+              value: "api-key=$(NEW_RELIC_LICENSE_KEY)"
           resources:
             requests:
               cpu: 50m
