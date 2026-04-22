@@ -26,7 +26,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: "1.25.0"
+          go-version: "1.24.0"
           cache-dependency-path: evaluation-service/go.sum
 
       - name: Go Lint
@@ -34,7 +34,7 @@ jobs:
         with:
           version: latest
           working-directory: evaluation-service
-          args: --timeout=5m --go=1.24
+          args: --timeout=5m
 
       - name: Unit Test
         run: |
