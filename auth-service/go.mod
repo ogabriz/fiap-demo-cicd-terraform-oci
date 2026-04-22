@@ -1,6 +1,6 @@
 module github.com/ealvesjr90/fiap-demo-cicd-terraform-oci/auth-service
 
-go 1.21
+go 1.23
 
 require (
 	github.com/joho/godotenv v1.5.1
