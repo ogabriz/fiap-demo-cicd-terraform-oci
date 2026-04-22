@@ -29,6 +29,11 @@ jobs:
           go-version: "1.21"
           cache-dependency-path: auth-service/go.sum
 
+      - name: Go Mod Tidy
+        run: |
+          cd auth-service
+          go mod tidy
+
       - name: Go Lint
         uses: golangci/golangci-lint-action@v4
         with:

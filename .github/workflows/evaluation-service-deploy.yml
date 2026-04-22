@@ -31,7 +31,9 @@ jobs:
 
       - name: Workaround for golangci-lint
         run: |
-          sed -i 's/^go 1.2.*/go 1.24.0/' evaluation-service/go.mod
+          cd evaluation-service
+          sed -i 's/^go 1.2.*/go 1.24.0/' go.mod
+          go mod tidy
 
       - name: Go Lint
         uses: golangci/golangci-lint-action@v6
