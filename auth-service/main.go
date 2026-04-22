@@ -44,7 +44,11 @@ func main() {
 
 	// OpenTelemetry init
 	shutdown := initTracer()
-	defer shutdown(context.Background())
+	defer func() {
+		if err := shutdown(context.Background()); err != nil {
+			log.Printf("Error shutting down tracer: %v", err)
+		}
+	}()
 
 	databaseURL := os.Getenv("DATABASE_URL")
 	if databaseURL == "" {

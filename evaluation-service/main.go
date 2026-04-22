@@ -34,7 +34,11 @@ func main() {
 
 	// OpenTelemetry init
 	shutdown := initTracer()
-	defer shutdown(context.Background())
+	defer func() {
+		if err := shutdown(context.Background()); err != nil {
+			log.Printf("Error shutting down tracer: %v", err)
+		}
+	}()
 
 	// --- Configuração ---
 	port := os.Getenv("PORT")
