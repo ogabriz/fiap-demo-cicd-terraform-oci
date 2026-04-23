@@ -128,6 +128,7 @@ jobs:
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add evaluation-service/k8s/deployment.yaml
+          git add auth-service/k8s/deployment.yaml
           git commit -m "chore(gitops): update ${{ env.SERVICE_NAME }} image to ${{ github.sha }}"
+          git pull --rebase origin main
           git push origin main
