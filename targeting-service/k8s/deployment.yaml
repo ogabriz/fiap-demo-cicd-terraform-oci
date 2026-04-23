@@ -24,7 +24,7 @@ spec:
         - name: ocir-secret
       containers:
         - name: targeting-service
-          image: sa-saopaulo-1.ocir.io/griog4pa3yfi/togglemaster/targeting-service:0120ef127396612760403dfab1119a0c898f9154
+          image: sa-saopaulo-1.ocir.io/grqkmwwimskh/togglemaster/targeting-service:beda81b7fe9696fea52adcb90dea45293c66da77
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true
