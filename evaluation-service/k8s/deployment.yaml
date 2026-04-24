@@ -34,7 +34,7 @@ spec:
             capabilities:
               drop:
                 - ALL
-          image: sa-saopaulo-1.ocir.io/grqkmwwimskh/togglemaster/evaluation-service:d0cb295b0dcf185fc4de8a2d18fb4cc6d20d3392
+          image: sa-saopaulo-1.ocir.io/griog4pa3yfi/togglemaster/evaluation-service:48e19cc224e5ced3273890a07896f04d3d08fef8
           ports:
             - containerPort: 8004
               protocol: TCP
