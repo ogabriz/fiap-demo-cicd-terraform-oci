@@ -18,7 +18,7 @@ const (
 	flagInfoCacheTTL = 30 * time.Second
 )
 
-// getDecision é o wrapper principal
+// getDecision é o wrapper principal.
 func (a *App) getDecision(userID, flagName string) (bool, error) {
 	// 1. Obter os dados da flag (do cache ou dos serviços)
 	flagInfo, err := a.getCombinedFlagInfo(flagName)
