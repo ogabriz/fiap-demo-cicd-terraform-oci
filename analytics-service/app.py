@@ -28,7 +28,7 @@ if not all([OCI_QUEUE_ENDPOINT, OCI_QUEUE_ID, OCI_COMPARTMENT_ID]):
     sys.exit(1)
 
 # --- Clientes OCI ---
-# Tenta Resource Principal (OKE), senão usa config padrão (local)
+# Tenta Resource Principal (OKE), senão usa config padrão (local).
 try:
     signer = oci.auth.signers.get_resource_principals_signer()
     oci_config = {}

@@ -42,7 +42,7 @@ type ValidateResponse struct {
 func main() {
 	_ = godotenv.Load()
 
-	// OpenTelemetry init
+	// OpenTelemetry init.
 	shutdown := initTracer()
 	defer func() {
 		if err := shutdown(context.Background()); err != nil {
