@@ -32,7 +32,7 @@ spec:
             capabilities:
               drop:
                 - ALL
-          image: sa-saopaulo-1.ocir.io/grqkmwwimskh/togglemaster/flag-service:8361d9867e8eb5c93298a1b0ffb3546c63d3adaa
+          image: sa-saopaulo-1.ocir.io/griog4pa3yfi/togglemaster/flag-service:5e41fe569703f8b90f8a295bc02c7f6a48b83913
           ports:
             - containerPort: 8002
               protocol: TCP
