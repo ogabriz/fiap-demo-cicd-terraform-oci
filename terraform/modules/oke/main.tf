@@ -90,7 +90,7 @@ resource "oci_containerengine_node_pool" "pool" {
 
   node_shape_config {
     ocpus         = 2
-    memory_in_gbs = 12
+    memory_in_gbs = 16
   }
 
   node_source_details {
