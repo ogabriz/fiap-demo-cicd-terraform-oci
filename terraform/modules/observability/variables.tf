@@ -13,3 +13,9 @@ variable "redis_host" {
   description = "Redis host IP or hostname"
   type        = string
 }
+
+variable "discord_webhook_url" {
+  description = "Discord Webhook URL for alert notifications"
+  type        = string
+  sensitive   = true
+}
