@@ -54,8 +54,9 @@ module "oke" {
 }
 
 module "observability" {
-  source     = "./modules/observability"
-  cluster_id = module.oke.cluster_id
-  redis_host = module.redis.redis_private_ip
-  namespace  = "monitoring"
+  source              = "./modules/observability"
+  cluster_id          = module.oke.cluster_id
+  redis_host          = module.redis.redis_private_ip
+  namespace           = "monitoring"
+  discord_webhook_url = var.discord_webhook_url
 }

@@ -67,6 +67,77 @@ grafana:
       service.beta.kubernetes.io/oci-load-balancer-shape: flexible
       service.beta.kubernetes.io/oci-load-balancer-shape-flex-min: "10"
       service.beta.kubernetes.io/oci-load-balancer-shape-flex-max: "10"
+  alerting:
+    contactpoints.yaml:
+      apiVersion: 1
+      contactPoints:
+        - orgId: 1
+          name: Discord
+          receivers:
+            - uid: discord
+              type: discord
+              settings:
+                url: "${var.discord_webhook_url}"
+                use_discord_username: true
+              disableResolveMessage: false
+    policies.yaml:
+      apiVersion: 1
+      policies:
+        - orgId: 1
+          receiver: Discord
+          group_wait: 30s
+          group_interval: 5m
+          repeat_interval: 4h
+
+alertmanager:
+  enabled: true
+  config:
+    route:
+      receiver: "discord"
+      group_wait: 30s
+      group_interval: 5m
+      repeat_interval: 4h
+    receivers:
+      - name: "discord"
+        discord_configs:
+          - webhook_url: "${var.discord_webhook_url}"
+            title: '{{ .GroupLabels.alertname }}'
+            message: '{{ range .Alerts }}**{{ .Labels.severity }}**: {{ .Annotations.summary }}{{ end }}'
+            send_resolved: true
+
+additionalPrometheusRulesMap:
+  togglemaster-alerts:
+    groups:
+      - name: togglemaster
+        rules:
+          - alert: PodCrashLooping
+            expr: rate(kube_pod_container_status_restarts_total{namespace="togglemaster"}[5m]) > 0
+            for: 5m
+            labels:
+              severity: critical
+            annotations:
+              summary: "Pod {{ $labels.pod }} em CrashLoop no namespace togglemaster"
+          - alert: HighErrorRate
+            expr: sum(rate(nginx_ingress_controller_requests{status=~"5.."}[5m])) by (ingress) > 0.5
+            for: 2m
+            labels:
+              severity: warning
+            annotations:
+              summary: "Alta taxa de erros 5xx no ingress {{ $labels.ingress }}"
+          - alert: HighCPUUsage
+            expr: sum(rate(container_cpu_usage_seconds_total{namespace="togglemaster"}[5m])) by (pod) > 0.8
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              summary: "Pod {{ $labels.pod }} com uso de CPU acima de 80%"
+          - alert: PodNotReady
+            expr: kube_pod_status_ready{namespace="togglemaster", condition="true"} == 0
+            for: 5m
+            labels:
+              severity: critical
+            annotations:
+              summary: "Pod {{ $labels.pod }} nao esta Ready ha 5 minutos"
 EOF
   ]
 
