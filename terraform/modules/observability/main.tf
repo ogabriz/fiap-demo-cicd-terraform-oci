@@ -94,9 +94,15 @@ alertmanager:
   config:
     route:
       receiver: "discord"
+      group_by:
+        - namespace
       group_wait: 30s
       group_interval: 5m
       repeat_interval: 4h
+      routes:
+        - receiver: "null"
+          matchers:
+            - alertname = "Watchdog"
     receivers:
       - name: "discord"
         discord_configs:
@@ -104,6 +110,7 @@ alertmanager:
             title: '{{ .GroupLabels.alertname }}'
             message: '{{ range .Alerts }}**{{ .Labels.severity }}**: {{ .Annotations.summary }}{{ end }}'
             send_resolved: true
+      - name: "null"
 
 additionalPrometheusRulesMap:
   togglemaster-alerts:
