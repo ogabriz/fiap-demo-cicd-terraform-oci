@@ -15,24 +15,6 @@ module "nosql" {
   table_name     = "togglemaster_table"
 }
 
-module "postgres" {
-  source = "./modules/postgres"
-
-  compartment_id = var.compartment_id
-  subnet_id      = module.networking.db_subnet_id
-  ssh_public_key = var.ssh_public_key
-  image_id       = var.image_id
-}
-
-module "redis" {
-  source = "./modules/redis"
-
-  compartment_id = var.compartment_id
-  subnet_id      = module.networking.db_subnet_id
-  ssh_public_key = var.ssh_public_key
-  image_id       = var.image_id
-}
-
 module "queue" {
   source = "./modules/queue"
 
@@ -40,7 +22,6 @@ module "queue" {
 }
 
 module "oke" {
-
   source = "./modules/oke"
 
   compartment_id      = var.compartment_id
@@ -56,7 +37,7 @@ module "oke" {
 module "observability" {
   source               = "./modules/observability"
   cluster_id           = module.oke.cluster_id
-  redis_host           = module.redis.redis_private_ip
+  redis_host           = "redis.togglemaster.svc.cluster.local"
   namespace            = "monitoring"
   discord_webhook_url  = var.discord_webhook_url
   newrelic_license_key = var.newrelic_license_key

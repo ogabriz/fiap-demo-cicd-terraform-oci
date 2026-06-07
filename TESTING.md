@@ -36,12 +36,45 @@ cd terraform
 terraform state list
 
 # Outputs importantes
-terraform output postgres_private_ip
-terraform output redis_private_ip
 terraform output queue_id
 terraform output queue_messages_endpoint
 terraform output nosql_table_id
 terraform output oke_cluster_id
+```
+
+---
+
+## 1.1 Deploy da Infraestrutura In-Cluster (PostgreSQL + Redis)
+
+PostgreSQL e Redis rodam como pods dentro do cluster OKE (nao mais em VMs externas).
+
+```bash
+# Limpar pods antigos (se existirem servicos antigos)
+kubectl delete deployment analytics-service auth-service evaluation-service flag-service targeting-service -n togglemaster --ignore-not-found
+kubectl delete svc analytics-service auth-service evaluation-service flag-service targeting-service -n togglemaster --ignore-not-found
+kubectl delete job auth-db-init flag-db-init targeting-db-init -n togglemaster --ignore-not-found
+
+# Deploy PostgreSQL e Redis no cluster
+kubectl apply -f k8s-infra/postgres.yaml
+kubectl apply -f k8s-infra/redis.yaml
+
+# Aguardar pods ficarem prontos
+kubectl rollout status deployment/postgres -n togglemaster --timeout=120s
+kubectl rollout status deployment/redis -n togglemaster --timeout=120s
+
+# Inicializar bancos de dados
+kubectl delete job db-init-ngo db-init-donation -n togglemaster --ignore-not-found
+kubectl apply -f k8s-infra/db-init-job.yaml
+kubectl wait --for=condition=complete job/db-init-ngo -n togglemaster --timeout=120s
+kubectl wait --for=condition=complete job/db-init-donation -n togglemaster --timeout=120s
+
+# Deploy do ingress
+kubectl apply -f k8s-common/ingress.yaml
+
+# Deploy dos servicos (as imagens devem estar no OCIR)
+kubectl apply -f ngo-service/k8s/manifests.yaml
+kubectl apply -f donation-service/k8s/manifests.yaml
+kubectl apply -f volunteer-service/k8s/manifests.yaml
 ```
 
 ---

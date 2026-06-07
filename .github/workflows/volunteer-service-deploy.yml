@@ -114,8 +114,16 @@ jobs:
         run: |
           oci ce cluster create-kubeconfig --cluster-id ${{ secrets.OCI_OKE_CLUSTER_ID }} --file $HOME/.kube/config --region ${{ env.OCI_REGION }} --token-version 2.0.0 
 
+      - name: Deploy Infrastructure (PostgreSQL + Redis)
+        run: |
+          kubectl apply -f k8s-infra/postgres.yaml
+          kubectl apply -f k8s-infra/redis.yaml
+          kubectl rollout status deployment/postgres -n togglemaster --timeout=120s || true
+          kubectl rollout status deployment/redis -n togglemaster --timeout=120s || true
+
       - name: Deploy to K8s
         run: |
+          kubectl apply -f k8s-common/ingress.yaml
           kubectl apply -f volunteer-service/k8s/manifests.yaml
           kubectl set image deployment/volunteer-service volunteer-service=${{ env.OCI_REGION }}.ocir.io/${{ secrets.OCI_TENANCY_NAMESPACE }}/togglemaster/${{ env.SERVICE_NAME }}:${{ github.sha }} -n togglemaster
           kubectl rollout status deployment/volunteer-service -n togglemaster
