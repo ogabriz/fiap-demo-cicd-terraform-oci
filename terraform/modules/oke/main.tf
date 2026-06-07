@@ -41,7 +41,7 @@ resource "oci_containerengine_cluster" "main" {
   compartment_id = var.compartment_id
   name           = "togglemaster-oke"
 
-  vcn_id = var.vcn_id
+  vcn_id             = var.vcn_id
   kubernetes_version = "v1.34.2"
 
   lifecycle {

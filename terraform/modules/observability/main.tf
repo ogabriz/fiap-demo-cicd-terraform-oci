@@ -22,11 +22,11 @@ resource "kubernetes_namespace_v1" "monitoring" {
 }
 
 resource "helm_release" "prometheus_stack" {
-  name       = "prometheus-stack"
-  repository = "https://prometheus-community.github.io/helm-charts"
-  chart      = "kube-prometheus-stack"
-  namespace  = kubernetes_namespace_v1.monitoring.metadata[0].name
-  version    = "69.3.2"
+  name            = "prometheus-stack"
+  repository      = "https://prometheus-community.github.io/helm-charts"
+  chart           = "kube-prometheus-stack"
+  namespace       = kubernetes_namespace_v1.monitoring.metadata[0].name
+  version         = "69.3.2"
   timeout         = 1200
   force_update    = true
   cleanup_on_fail = true
@@ -152,11 +152,11 @@ EOF
 }
 
 resource "helm_release" "loki_stack" {
-  name       = "loki-stack"
-  repository = "https://grafana.github.io/helm-charts"
-  chart      = "loki-stack"
-  namespace  = kubernetes_namespace_v1.monitoring.metadata[0].name
-  version    = "2.10.2"
+  name            = "loki-stack"
+  repository      = "https://grafana.github.io/helm-charts"
+  chart           = "loki-stack"
+  namespace       = kubernetes_namespace_v1.monitoring.metadata[0].name
+  version         = "2.10.2"
   timeout         = 600
   force_update    = true
   cleanup_on_fail = true
@@ -217,14 +217,104 @@ EOF
   depends_on = [helm_release.prometheus_stack]
 }
 
-resource "helm_release" "redis_exporter" {
-  name       = "redis-exporter"
-  repository = "https://prometheus-community.github.io/helm-charts"
-  chart      = "prometheus-redis-exporter"
+resource "helm_release" "otel_collector" {
+  count      = var.newrelic_license_key != "" ? 1 : 0
+  name       = "otel-collector"
+  repository = "https://open-telemetry.github.io/opentelemetry-helm-charts"
+  chart      = "opentelemetry-collector"
   namespace  = kubernetes_namespace_v1.monitoring.metadata[0].name
-  version    = "6.1.1"
+  version    = "0.73.1"
   timeout    = 600
   wait       = false
+
+  values = [<<EOF
+mode: deployment
+config:
+  receivers:
+    otlp:
+      protocols:
+        grpc:
+          endpoint: "0.0.0.0:4317"
+        http:
+          endpoint: "0.0.0.0:4318"
+  processors:
+    batch:
+      timeout: 10s
+      send_batch_size: 1024
+    memory_limiter:
+      check_interval: 5s
+      limit_mib: 256
+  exporters:
+    otlp/newrelic:
+      endpoint: "https://otlp.nr-data.net:4317"
+      headers:
+        api-key: "${var.newrelic_license_key}"
+    prometheus:
+      endpoint: "0.0.0.0:8889"
+  service:
+    pipelines:
+      traces:
+        receivers: [otlp]
+        processors: [memory_limiter, batch]
+        exporters: [otlp/newrelic]
+      metrics:
+        receivers: [otlp]
+        processors: [memory_limiter, batch]
+        exporters: [otlp/newrelic, prometheus]
+      logs:
+        receivers: [otlp]
+        processors: [memory_limiter, batch]
+        exporters: [otlp/newrelic]
+service:
+  type: ClusterIP
+  ports:
+    otlp-grpc:
+      port: 4317
+      targetPort: 4317
+      protocol: TCP
+    otlp-http:
+      port: 4318
+      targetPort: 4318
+      protocol: TCP
+EOF
+  ]
+
+  depends_on = [kubernetes_namespace_v1.monitoring]
+}
+
+resource "kubectl_manifest" "solidarytech_servicemonitor" {
+  yaml_body = <<EOF
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: solidarytech-services
+  namespace: monitoring
+  labels:
+    release: prometheus-stack
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/part-of: solidarytech
+  namespaceSelector:
+    matchNames:
+      - togglemaster
+  endpoints:
+    - port: http
+      interval: 30s
+      path: /health
+EOF
+
+  depends_on = [helm_release.prometheus_stack]
+}
+
+resource "helm_release" "redis_exporter" {
+  name            = "redis-exporter"
+  repository      = "https://prometheus-community.github.io/helm-charts"
+  chart           = "prometheus-redis-exporter"
+  namespace       = kubernetes_namespace_v1.monitoring.metadata[0].name
+  version         = "6.1.1"
+  timeout         = 600
+  wait            = false
   force_update    = true
   cleanup_on_fail = true
   replace         = true

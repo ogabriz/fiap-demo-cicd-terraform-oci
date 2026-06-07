@@ -15,11 +15,11 @@ resource "oci_nosql_table" "main" {
 CREATE TABLE IF NOT EXISTS ${var.table_name} (
   id STRING,
   name STRING,
+  created_at STRING,
   email STRING,
   ngo_id STRING,
   registered_at STRING,
-  created_at STRING,
-  PRIMARY KEY(id)
+  PRIMARY KEY(SHARD(id))
 )
 DDL
 

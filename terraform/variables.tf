@@ -49,3 +49,10 @@ variable "discord_webhook_url" {
   default     = "https://discord.com/api/webhooks/1498992712941305999/6tqHDK7YC_sxTDS-WlOvM2W4JOKZF9WeQ36N3qQql_UpARCPX2pC0wy-I4wpdTe--VOc"
   sensitive   = true
 }
+
+variable "newrelic_license_key" {
+  description = "New Relic License Key for OTLP telemetry export"
+  type        = string
+  default     = ""
+  sensitive   = true
+}

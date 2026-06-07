@@ -44,19 +44,20 @@ module "oke" {
   source = "./modules/oke"
 
   compartment_id      = var.compartment_id
-  tenancy_ocid   = var.tenancy_ocid
+  tenancy_ocid        = var.tenancy_ocid
   vcn_id              = module.networking.vcn_id
   subnet_id           = module.networking.workers_subnet_id
   availability_domain = var.availability_domain
   node_image          = var.oke_image
-  node_subnet_id = module.networking.node_subnet_id
-  lb_subnet_id   = module.networking.lb_subnet_id
+  node_subnet_id      = module.networking.node_subnet_id
+  lb_subnet_id        = module.networking.lb_subnet_id
 }
 
 module "observability" {
-  source              = "./modules/observability"
-  cluster_id          = module.oke.cluster_id
-  redis_host          = module.redis.redis_private_ip
-  namespace           = "monitoring"
-  discord_webhook_url = var.discord_webhook_url
+  source               = "./modules/observability"
+  cluster_id           = module.oke.cluster_id
+  redis_host           = module.redis.redis_private_ip
+  namespace            = "monitoring"
+  discord_webhook_url  = var.discord_webhook_url
+  newrelic_license_key = var.newrelic_license_key
 }

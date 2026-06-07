@@ -28,7 +28,7 @@ resource "oci_core_instance" "redis" {
 
   metadata = {
     ssh_authorized_keys = var.ssh_public_key
-    user_data           = base64encode(<<-EOF
+    user_data = base64encode(<<-EOF
       #!/bin/bash
       # Instalação do Redis (Oracle Linux / RHEL style)
       sudo dnf install -y redis
