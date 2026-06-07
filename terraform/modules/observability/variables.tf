@@ -19,3 +19,10 @@ variable "discord_webhook_url" {
   type        = string
   sensitive   = true
 }
+
+variable "newrelic_license_key" {
+  description = "New Relic License Key for OTLP export"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
