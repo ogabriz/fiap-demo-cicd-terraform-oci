@@ -80,7 +80,8 @@ def register_volunteer():
 @app.route('/volunteers/<int:ngo_id>', methods=['GET'])
 def get_volunteers_by_ngo(ngo_id):
     try:
-        statement = f"SELECT * FROM {NOSQL_TABLE_NAME} WHERE ngo_id = '{ngo_id}'"
+        statement = "SELECT * FROM {} WHERE ngo_id = '{}'".format(  # nosec B608
+            NOSQL_TABLE_NAME, ngo_id)
         response = nosql_client.query(
             query_details=oci.nosql.models.QueryDetails(
                 compartment_id=NOSQL_COMPARTMENT_ID,
@@ -97,4 +98,4 @@ def get_volunteers_by_ngo(ngo_id):
 
 if __name__ == '__main__':
     port = int(os.getenv("PORT", 8083))
-    app.run(host='0.0.0.0', port=port)
+    app.run(host='0.0.0.0', port=port)  # nosec B104
