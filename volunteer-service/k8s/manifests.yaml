@@ -1,0 +1,61 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: volunteer-service
+  namespace: togglemaster
+  labels:
+    app: volunteer-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: volunteer-service
+  template:
+    metadata:
+      labels:
+        app: volunteer-service
+    spec:
+      containers:
+      - name: volunteer-service
+        image: sa-saopaulo-1.ocir.io/grqkmwwimskh/togglemaster/volunteer-service:latest
+        ports:
+        - containerPort: 8083
+        env:
+        - name: PORT
+          value: "8083"
+        - name: AWS_REGION
+          value: "us-east-1"
+        - name: AWS_DYNAMODB_TABLE
+          value: "Volunteers"
+        # OpenTelemetry / New Relic
+        - name: OTEL_SERVICE_NAME
+          value: "volunteer-service"
+        - name: OTEL_EXPORTER_OTLP_ENDPOINT
+          value: "https://otlp.nr-data.net"
+        - name: NEW_RELIC_LICENSE_KEY
+          valueFrom:
+            secretKeyRef:
+              name: newrelic-secret
+              key: license-key
+        - name: OTEL_EXPORTER_OTLP_HEADERS
+          value: "api-key=$(NEW_RELIC_LICENSE_KEY)"
+        resources:
+          requests:
+            cpu: 50m
+            memory: 128Mi
+          limits:
+            cpu: 200m
+            memory: 256Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: volunteer-service
+  namespace: togglemaster
+spec:
+  selector:
+    app: volunteer-service
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 8083

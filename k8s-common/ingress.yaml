@@ -51,4 +51,28 @@ spec:
             port:
               number: 80
 
+      - path: /ngos(/|$)(.*)
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: ngo-service
+            port:
+              number: 80
+
+      - path: /donations(/|$)(.*)
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: donation-service
+            port:
+              number: 80
+
+      - path: /volunteers(/|$)(.*)
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: volunteer-service
+            port:
+              number: 80
+
               

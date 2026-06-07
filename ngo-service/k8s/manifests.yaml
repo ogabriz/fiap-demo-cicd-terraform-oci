@@ -1,0 +1,71 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ngo-service
+  namespace: togglemaster
+  labels:
+    app: ngo-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ngo-service
+  template:
+    metadata:
+      labels:
+        app: ngo-service
+    spec:
+      containers:
+      - name: ngo-service
+        image: sa-saopaulo-1.ocir.io/grqkmwwimskh/togglemaster/ngo-service:latest
+        ports:
+        - containerPort: 8081
+        env:
+        - name: PORT
+          value: "8081"
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: ngo-service-secret
+              key: DATABASE_URL
+        # OpenTelemetry / New Relic
+        - name: OTEL_SERVICE_NAME
+          value: "ngo-service"
+        - name: OTEL_EXPORTER_OTLP_ENDPOINT
+          value: "https://otlp.nr-data.net"
+        - name: NEW_RELIC_LICENSE_KEY
+          valueFrom:
+            secretKeyRef:
+              name: newrelic-secret
+              key: license-key
+        - name: OTEL_EXPORTER_OTLP_HEADERS
+          value: "api-key=$(NEW_RELIC_LICENSE_KEY)"
+        resources:
+          requests:
+            cpu: 50m
+            memory: 128Mi
+          limits:
+            cpu: 200m
+            memory: 256Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ngo-service
+  namespace: togglemaster
+spec:
+  selector:
+    app: ngo-service
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 8081
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: ngo-service-secret
+  namespace: togglemaster
+type: Opaque
+stringData:
+  DATABASE_URL: "postgres://togglemaster_user:togglepass123@postgres-vm.dbsubnet.togglemastervcn.oraclevcn.com:5432/ngos_db"
