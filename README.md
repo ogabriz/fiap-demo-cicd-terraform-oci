@@ -1,92 +1,112 @@
-# 🚀 SolidaryTech — Hackathon Fase 5
+# SolidaryTech — Hackathon Fase 5
 
-Bem-vindo ao repositório oficial da **SolidaryTech**.
+Bem-vindo ao repositorio oficial da **SolidaryTech**.
 
-Este monorepo contém os microsserviços que compõem a plataforma da ONG e servirá como base para os desafios do Hackathon Fase 5.
+Este monorepo contem os microsservicos que compoem a plataforma da ONG e servira como base para os desafios do Hackathon Fase 5.
 
-O objetivo principal deste projeto é aplicar conceitos modernos de:
+O objetivo principal deste projeto e aplicar conceitos modernos de:
 
 - SRE (Site Reliability Engineering)
 - FinOps
-- Multicloud
+- Multicloud (Oracle Cloud Infrastructure - OCI)
 - ITSM
 - Observabilidade
-- Resiliência
+- Resiliencia
 - Kubernetes & GitOps
-- Infraestrutura como Código (IaC)
+- Infraestrutura como Codigo (IaC)
 
 ---
 
-# 🏗️ Arquitetura dos Microsserviços
+# Arquitetura dos Microsservicos
 
-O ecossistema é composto por **3 microsserviços independentes**, desenvolvidos com tecnologias diferentes para simular um ambiente corporativo distribuído.
+O ecossistema e composto por **3 microsservicos independentes**, desenvolvidos com tecnologias diferentes para simular um ambiente corporativo distribuido.
+
+Toda a infraestrutura roda na **Oracle Cloud Infrastructure (OCI)**.
 
 ---
 
-## 1️⃣ NGO Service — Cadastro de ONGs
+## 1. NGO Service — Cadastro de ONGs
 
 | Item | Valor |
 |---|---|
 | Linguagem | Python 3.9+ |
 | Framework | Flask |
-| Banco de Dados | PostgreSQL |
+| Banco de Dados | PostgreSQL (VM OCI) |
 | Porta Local | `8081` |
 
-### 📌 Descrição
-Responsável pelo gerenciamento e cadastro das ONGs parceiras da plataforma.
+### Descricao
+Responsavel pelo gerenciamento e cadastro das ONGs parceiras da plataforma.
 
 ---
 
-## 2️⃣ Donation Service — Processamento de Doações
+## 2. Donation Service — Processamento de Doacoes
 
 | Item | Valor |
 |---|---|
 | Linguagem | Go 1.21+ |
-| Banco de Dados | PostgreSQL |
-| Mensageria | AWS SQS |
+| Banco de Dados | PostgreSQL (VM OCI) |
+| Mensageria | OCI Queue |
 | Porta Local | `8082` |
 
-### 📌 Descrição
-Este é o **Hot Path** da aplicação.
+### Descricao
+Este e o **Hot Path** da aplicacao.
 
-Responsável pelo processamento das doações e publicação de eventos assíncronos em filas para processamento posterior.
+Responsavel pelo processamento das doacoes e publicacao de eventos assincronos na **OCI Queue** para processamento posterior.
 
 ---
 
-## 3️⃣ Volunteer Service — Gestão de Voluntários
+## 3. Volunteer Service — Gestao de Voluntarios
 
 | Item | Valor |
 |---|---|
 | Linguagem | Python 3.9+ |
 | Framework | Flask |
-| Banco de Dados | AWS DynamoDB |
+| Banco de Dados | OCI NoSQL |
 | Porta Local | `8083` |
 
-### 📌 Descrição
-Gerencia o cadastro e inscrição de voluntários interessados em apoiar as ONGs parceiras.
+### Descricao
+Gerencia o cadastro e inscricao de voluntarios interessados em apoiar as ONGs parceiras.
 
-Utiliza armazenamento NoSQL nativo da AWS com foco em escalabilidade.
+Utiliza armazenamento NoSQL nativo da OCI (OCI NoSQL Database) com foco em escalabilidade.
 
 ---
 
-# 📁 Estrutura do Repositório
+# Estrutura do Repositorio
 
 ```text
 .
-├── ngo-service/          # Código Python e scripts SQL do serviço de ONGs
-├── donation-service/     # Código Go e scripts SQL do serviço de doações
-└── volunteer-service/    # Código Python do serviço de voluntários
+├── ngo-service/            # Python/Flask - Servico de ONGs (PostgreSQL)
+├── donation-service/       # Go - Servico de Doacoes (PostgreSQL + OCI Queue)
+├── volunteer-service/      # Python/Flask - Servico de Voluntarios (OCI NoSQL)
+├── terraform/              # Infraestrutura como Codigo (OCI)
+│   ├── modules/
+│   │   ├── networking/     # VCN, Subnets, Gateways
+│   │   ├── oke/            # Oracle Kubernetes Engine
+│   │   ├── postgres/       # VM PostgreSQL (cloud-init)
+│   │   ├── redis/          # VM Redis (cloud-init)
+│   │   ├── nosql/          # OCI NoSQL Table
+│   │   ├── queue/          # OCI Queue
+│   │   ├── ocir/           # Oracle Container Image Registry
+│   │   └── observability/  # Prometheus, Grafana, Loki
+│   ├── envs/dev.tfvars     # Configuracoes do ambiente dev
+│   ├── backend.tf          # Backend OCI Object Storage
+│   ├── provider.tf         # Provider OCI
+│   └── main.tf             # Modulo raiz
+├── k8s-infra/              # Manifests de infraestrutura K8s
+├── k8s-common/             # Ingress compartilhado
+├── .github/workflows/      # CI/CD pipelines
+└── scripts/                # Scripts auxiliares
 ```
 
 ---
 
-# 🚀 Executando Localmente
+# Executando Localmente
 
-Antes de realizar deploy em Kubernetes e automatizações CI/CD, recomenda-se validar todo o ambiente localmente.
+Antes de realizar deploy em Kubernetes e automatizacoes CI/CD, recomenda-se validar todo o ambiente localmente.
 
 ---
 
-# ✅ Pré-requisitos
+# Pre-requisitos
 
 Certifique-se de possuir os seguintes itens instalados:
 
@@ -94,12 +114,12 @@ Certifique-se de possuir os seguintes itens instalados:
 - Go 1.21+
 - Docker (opcional, mas recomendado)
 - PostgreSQL
-- AWS CLI configurado
-- Credenciais AWS válidas
+- OCI CLI configurado (`~/.oci/config`)
+- Credenciais OCI validas (API Key)
 
 ---
 
-# 🛠️ Passo 1 — Preparação da Infraestrutura
+# Passo 1 — Preparacao da Infraestrutura
 
 ## PostgreSQL
 
@@ -123,39 +143,43 @@ donation-service/db/init.sql
 
 ---
 
-## AWS DynamoDB
+## OCI NoSQL
 
-Crie a tabela:
+A tabela e provisionada automaticamente pelo Terraform (`terraform/modules/nosql`).
 
-| Configuração | Valor |
+| Configuracao | Valor |
 |---|---|
-| Nome da Tabela | `SolidaryTechVolunteers` |
-| Partition Key | `volunteer_id` |
-| Tipo | `String` |
+| Nome da Tabela | `togglemaster_table` |
+| Chave Primaria | `id` (STRING) |
+| Read Units | 50 |
+| Write Units | 50 |
 
 ---
 
-## AWS SQS
+## OCI Queue
 
-Crie uma fila do tipo **Standard Queue**.
+A fila e provisionada automaticamente pelo Terraform (`terraform/modules/queue`).
 
-Exemplo:
+| Configuracao | Valor |
+|---|---|
+| Nome da Fila | `togglemaster-queue` |
+| Visibilidade | 30s |
+| Timeout | 30s |
+| Retencao | 7 dias |
 
-```text
-https://sqs.us-east-1.amazonaws.com/1234567890/solidary-donations
-```
-
-Guarde a URL da fila para utilizar nas variáveis de ambiente.
-
----
-
-# ⚙️ Passo 2 — Variáveis de Ambiente
-
-Crie um arquivo `.env` dentro de cada microsserviço.
+Apos o `terraform apply`, copie os outputs:
+- `queue_id` (OCID da fila)
+- `queue_messages_endpoint` (endpoint para envio de mensagens)
 
 ---
 
-## 📄 ngo-service/.env
+# Passo 2 — Variaveis de Ambiente
+
+Crie um arquivo `.env` dentro de cada microsservico.
+
+---
+
+## ngo-service/.env
 
 ```env
 PORT=8081
@@ -164,36 +188,37 @@ DATABASE_URL="postgres://SEU_USUARIO:SUA_SENHA@localhost:5432/ngo_db"
 
 ---
 
-## 📄 donation-service/.env
+## donation-service/.env
 
 ```env
 PORT=8082
 DATABASE_URL="postgres://SEU_USUARIO:SUA_SENHA@localhost:5432/donation_db"
 
-AWS_REGION="us-east-1"
-AWS_SQS_URL="SUA_URL_DA_FILA_SQS"
+OCI_QUEUE_ID="ocid1.queue.oc1.sa-saopaulo-1.EXEMPLO"
+OCI_QUEUE_ENDPOINT="https://cell-1.queue.messaging.sa-saopaulo-1.oci.oraclecloud.com"
 ```
 
 ---
 
-## 📄 volunteer-service/.env
+## volunteer-service/.env
 
 ```env
 PORT=8083
 
-AWS_REGION="us-east-1"
-AWS_DYNAMODB_TABLE="SolidaryTechVolunteers"
+OCI_REGION="sa-saopaulo-1"
+OCI_NOSQL_COMPARTMENT_ID="ocid1.compartment.oc1..EXEMPLO"
+OCI_NOSQL_TABLE_NAME="togglemaster_table"
 ```
 
 ---
 
-# ▶️ Passo 3 — Inicializando os Serviços
+# Passo 3 — Inicializando os Servicos
 
 Abra **3 terminais separados**.
 
 ---
 
-## 🟣 Terminal 1 — NGO Service
+## Terminal 1 — NGO Service
 
 ```bash
 cd ngo-service
@@ -205,7 +230,7 @@ gunicorn --bind 0.0.0.0:8081 app:app
 
 ---
 
-## 🟠 Terminal 2 — Donation Service
+## Terminal 2 — Donation Service
 
 ```bash
 cd donation-service
@@ -217,7 +242,7 @@ go run .
 
 ---
 
-## 🔵 Terminal 3 — Volunteer Service
+## Terminal 3 — Volunteer Service
 
 ```bash
 cd volunteer-service
@@ -229,9 +254,9 @@ gunicorn --bind 0.0.0.0:8083 app:app
 
 ---
 
-# 🌐 Portas Locais
+# Portas Locais
 
-| Serviço | URL |
+| Servico | URL |
 |---|---|
 | NGO Service | http://localhost:8081 |
 | Donation Service | http://localhost:8082 |
@@ -239,124 +264,137 @@ gunicorn --bind 0.0.0.0:8083 app:app
 
 ---
 
-# 🎯 Objetivos do Hackathon
+# Infraestrutura OCI (Terraform)
 
-O código fornecido representa apenas a base do software.
+Toda a infraestrutura e provisionada via Terraform na Oracle Cloud:
 
-O verdadeiro desafio está na engenharia, operação e resiliência da plataforma.
+| Recurso | Modulo Terraform |
+|---|---|
+| VCN + Subnets + Gateways | `modules/networking` |
+| Oracle Kubernetes Engine (OKE) | `modules/oke` |
+| PostgreSQL VM (cloud-init) | `modules/postgres` |
+| Redis VM (cloud-init) | `modules/redis` |
+| OCI NoSQL Table | `modules/nosql` |
+| OCI Queue | `modules/queue` |
+| Oracle Container Image Registry | `modules/ocir` |
+| Prometheus + Grafana + Loki | `modules/observability` |
 
----
+### Deploy da Infraestrutura
 
-# 📦 Conteinerização
+```bash
+cd terraform
 
-- Criar Dockerfiles
-- Otimizar imagens
-- Implementar estratégias multi-stage build
-- Reduzir vulnerabilidades
-
----
-
-# ☁️ Infraestrutura como Código (Terraform)
-
-Provisionar:
-
-- Amazon EKS
-- Amazon RDS
-- Amazon ElastiCache
-- Amazon SQS
-- Amazon DynamoDB
-- VPC, Subnets e Security Groups
-
-## 💰 FinOps
-
-Implementar:
-
-- Tags estruturadas
-- Controle de custos
-- Rightsizing
-- Budgets e alertas financeiros
+terraform init
+terraform plan -var-file=envs/dev.tfvars
+terraform apply -var-file=envs/dev.tfvars
+```
 
 ---
 
-# 🔄 CI/CD & GitOps
+# CI/CD & GitOps
 
-Automatizar:
+Pipelines automatizadas via GitHub Actions:
 
-- Testes
-- Security Scans
-- Build de imagens
-- Deploy em Kubernetes
+| Pipeline | Trigger | Descricao |
+|---|---|---|
+| `terraform-plan.yml` | Push em `terraform/**` | Terraform Plan |
+| `terraform-apply.yml` | Manual | Terraform Apply (requer aprovacao) |
+| `terraform-destroy.yml` | Manual | Terraform Destroy |
+| `ngo-service-deploy.yml` | Push em `ngo-service/**` | Build + Deploy NGO Service |
+| `donation-service-deploy.yml` | Push em `donation-service/**` | Build + Deploy Donation Service |
+| `volunteer-service-deploy.yml` | Push em `volunteer-service/**` | Build + Deploy Volunteer Service |
 
-Ferramentas sugeridas:
-
-- GitHub Actions
-- ArgoCD
-- FluxCD
+Cada pipeline inclui:
+- Lint e testes unitarios
+- Scan de seguranca (SAST + SCA via Bandit/Gosec + Trivy)
+- Build de imagem Docker (ARM64)
+- Push para OCIR (Oracle Container Image Registry)
+- Deploy no OKE (Oracle Kubernetes Engine)
 
 ---
 
-# 📊 Observabilidade
+# Observabilidade
 
-Instrumentar os serviços utilizando:
+Instrumentacao dos servicos utilizando:
 
 - OpenTelemetry
 - Distributed Tracing
-- Métricas
+- Metricas
 - Logs estruturados
 
-Ferramentas sugeridas:
+Ferramentas provisionadas via Terraform:
 
 - Grafana
 - Prometheus
-- Datadog
-- New Relic
+- Loki
+- New Relic (via OTLP exporter)
 
 ---
 
-# 🛡️ SRE & Resiliência
+# SRE & Resiliencia
 
 Definir:
 
 - SLIs
 - SLOs
 - Error Budgets
-- Estratégias de Disaster Recovery
+- Estrategias de Disaster Recovery
 - Alertas inteligentes
 - Health Checks
 - Auto Healing
 
-## 🔥 Foco Principal
+## Foco Principal
 
-O `donation-service` deve ser tratado como componente crítico da plataforma.
+O `donation-service` deve ser tratado como componente critico da plataforma.
 
 ---
 
-# 📚 Tecnologias Envolvidas
+# GitHub Secrets Necessarios
 
-- Python
-- Flask
+| Secret | Descricao |
+|---|---|
+| `OCI_TENANCY_OCID` | OCID do Tenancy |
+| `OCI_USER_OCID` | OCID do usuario OCI |
+| `OCI_FINGERPRINT` | Fingerprint da API Key |
+| `OCI_PRIVATE_KEY` | Chave privada OCI (base64) |
+| `OCI_REGION` | Regiao OCI (ex: sa-saopaulo-1) |
+| `OCI_COMPARTMENT_ID` | OCID do Compartment |
+| `OCI_SSH_PUBLIC_KEY` | Chave SSH publica |
+| `OCI_AUTH_TOKEN` | Auth Token para OCIR |
+| `OCI_TENANCY_NAMESPACE` | Namespace do Tenancy |
+| `OCI_USERNAME` | Username OCI para OCIR |
+| `OCI_OKE_CLUSTER_ID` | OCID do cluster OKE |
+
+---
+
+# Tecnologias Envolvidas
+
+- Python / Flask
 - Go
 - PostgreSQL
-- DynamoDB
-- AWS SQS
+- OCI NoSQL
+- OCI Queue
 - Docker
-- Kubernetes
+- Kubernetes (OKE)
 - Terraform
-- GitOps
+- GitHub Actions
+- ArgoCD
 - OpenTelemetry
+- Prometheus / Grafana / Loki
+- New Relic
 
 ---
 
-# 🤝 Contribuição
+# Contribuicao
 
-Este projeto foi criado exclusivamente para fins educacionais e execução do Hackathon Fase 5.
+Este projeto foi criado exclusivamente para fins educacionais e execucao do Hackathon Fase 5.
 
-Sinta-se livre para evoluir a arquitetura, melhorar a observabilidade e implementar boas práticas de engenharia de plataforma.
+Sinta-se livre para evoluir a arquitetura, melhorar a observabilidade e implementar boas praticas de engenharia de plataforma.
 
 ---
 
-# 🏁 Boa sorte!
+# Boa sorte!
 
-Bom Hackathon 🚀
+Bom Hackathon!
 
-Faça a diferença com a **SolidaryTech** 💙
+Faca a diferenca com a **SolidaryTech**

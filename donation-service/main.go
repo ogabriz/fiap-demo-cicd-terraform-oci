@@ -1,18 +1,18 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
 	"os"
-	"strconv"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/sqs"
+	"github.com/oracle/oci-go-sdk/v65/common"
+	"github.com/oracle/oci-go-sdk/v65/common/auth"
+	"github.com/oracle/oci-go-sdk/v65/queue"
+
 	_ "github.com/jackc/pgx/v4/stdlib"
 	"github.com/joho/godotenv"
 )
@@ -28,8 +28,17 @@ type Donation struct {
 
 type App struct {
 	DB          *sql.DB
-	SqsSvc      *sqs.SQS
-	SqsQueueURL string
+	QueueClient *queue.QueueClient
+	QueueID     string
+}
+
+func getOCIConfigProvider() (common.ConfigurationProvider, error) {
+	provider, err := auth.InstancePrincipalConfigurationProvider()
+	if err == nil {
+		return provider, nil
+	}
+	log.Println("Instance Principal indisponivel, usando config file (~/.oci/config)")
+	return common.DefaultConfigProvider(), nil
 }
 
 func main() {
@@ -42,7 +51,7 @@ func main() {
 
 	dbURL := os.Getenv("DATABASE_URL")
 	if dbURL == "" {
-		log.Fatal("DATABASE_URL é obrigatória")
+		log.Fatal("DATABASE_URL e obrigatoria")
 	}
 
 	db, err := sql.Open("pgx", dbURL)
@@ -51,16 +60,27 @@ func main() {
 	}
 	log.Println("Conectado ao PostgreSQL (donation-service).")
 
-	var sqsSvc *sqs.SQS
-	queueURL := os.Getenv("AWS_SQS_URL")
-	region := os.Getenv("AWS_REGION")
-	if queueURL != "" && region != "" {
-		sess, _ := session.NewSession(&aws.Config{Region: aws.String(region)})
-		sqsSvc = sqs.New(sess)
-		log.Println("Integração com AWS SQS ativada.")
+	var queueClient *queue.QueueClient
+	queueID := os.Getenv("OCI_QUEUE_ID")
+	queueEndpoint := os.Getenv("OCI_QUEUE_ENDPOINT")
+
+	if queueID != "" && queueEndpoint != "" {
+		provider, provErr := getOCIConfigProvider()
+		if provErr != nil {
+			log.Printf("Aviso: nao foi possivel configurar OCI auth: %v", provErr)
+		} else {
+			client, clientErr := queue.NewQueueClientWithConfigurationProvider(provider)
+			if clientErr != nil {
+				log.Printf("Aviso: nao foi possivel criar OCI Queue client: %v", clientErr)
+			} else {
+				client.Host = queueEndpoint
+				queueClient = &client
+				log.Println("Integracao com OCI Queue ativada.")
+			}
+		}
 	}
 
-	app := &App{DB: db, SqsSvc: sqsSvc, SqsQueueURL: queueURL}
+	app := &App{DB: db, QueueClient: queueClient, QueueID: queueID}
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/health", app.HealthHandler)
@@ -82,23 +102,23 @@ func (a *App) DonationHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodPost {
 		var d Donation
 		if err := json.NewDecoder(r.Body).Decode(&d); err != nil {
-			http.Error(w, `{"error":"Payload inválido"}`, http.StatusBadRequest)
+			http.Error(w, `{"error":"Payload invalido"}`, http.StatusBadRequest)
 			return
 		}
 
-		d.Status = "APPROVED" // Simulação de gateway de pagamento
+		d.Status = "APPROVED"
 		err := a.DB.QueryRow(
 			"INSERT INTO donations (ngo_id, amount, donor_name, status) VALUES ($1, $2, $3, $4) RETURNING id, created_at",
 			d.NgoID, d.Amount, d.DonorName, d.Status,
 		).Scan(&d.ID, &d.CreatedAt)
 
 		if err != nil {
-			log.Printf("Erro ao salvar doação: %v", err)
+			log.Printf("Erro ao salvar doacao: %v", err)
 			http.Error(w, `{"error":"Erro interno"}`, http.StatusInternalServerError)
 			return
 		}
 
-		if a.SqsSvc != nil {
+		if a.QueueClient != nil {
 			go a.sendNotificationEvent(d)
 		}
 
@@ -126,16 +146,24 @@ func (a *App) DonationHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	http.Error(w, `{"error":"Método não permitido"}`, http.StatusMethodNotAllowed)
+	http.Error(w, `{"error":"Metodo nao permitido"}`, http.StatusMethodNotAllowed)
 }
 
 func (a *App) sendNotificationEvent(d Donation) {
 	body, _ := json.Marshal(d)
-	_, err := a.SqsSvc.SendMessage(&sqs.SendMessageInput{
-		MessageBody: aws.String(string(body)),
-		QueueUrl:    aws.String(a.SqsQueueURL),
+	content := string(body)
+
+	_, err := a.QueueClient.PutMessages(context.Background(), queue.PutMessagesRequest{
+		QueueId: &a.QueueID,
+		PutMessagesDetails: queue.PutMessagesDetails{
+			Messages: []queue.PutMessagesDetailsEntry{
+				{Content: &content},
+			},
+		},
 	})
 	if err != nil {
-		log.Printf("Falha ao despachar evento SQS: %v", err)
+		log.Printf("Falha ao enviar mensagem para OCI Queue: %v", err)
 	}
 }
+
+

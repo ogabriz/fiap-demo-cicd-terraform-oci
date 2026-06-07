@@ -35,3 +35,4 @@ outputs.json
 # Go binaries
 auth-service/auth-service
 evaluation-service/evaluation-service
+__pycache__/
