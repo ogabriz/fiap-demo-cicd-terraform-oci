@@ -10,6 +10,22 @@ spec:
     requests:
       storage: 5Gi
 ---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-init-script
+  namespace: togglemaster
+data:
+  init-databases.sh: |
+    #!/bin/bash
+    set -e
+    psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" <<-EOSQL
+      CREATE DATABASE ngo_db;
+      CREATE DATABASE donation_db;
+      GRANT ALL PRIVILEGES ON DATABASE ngo_db TO $POSTGRES_USER;
+      GRANT ALL PRIVILEGES ON DATABASE donation_db TO $POSTGRES_USER;
+    EOSQL
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -34,7 +50,7 @@ spec:
         - containerPort: 5432
         env:
         - name: POSTGRES_DB
-          value: "solidary_db"
+          value: "ngo_db"
         - name: POSTGRES_USER
           value: "togglemaster_user"
         - name: POSTGRES_PASSWORD
@@ -42,6 +58,8 @@ spec:
         volumeMounts:
         - name: postgres-storage
           mountPath: /var/lib/postgresql/data
+        - name: init-scripts
+          mountPath: /docker-entrypoint-initdb.d
         resources:
           requests:
             cpu: 100m
@@ -53,6 +71,9 @@ spec:
       - name: postgres-storage
         persistentVolumeClaim:
           claimName: postgres-pvc
+      - name: init-scripts
+        configMap:
+          name: postgres-init-script
 ---
 apiVersion: v1
 kind: Service

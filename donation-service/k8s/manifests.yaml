@@ -28,11 +28,17 @@ spec:
             secretKeyRef:
               name: donation-service-secret
               key: DATABASE_URL
-        - name: AWS_SQS_URL
-          value: "https://sqs.us-east-1.amazonaws.com/123456789012/donation-queue"
-        - name: AWS_REGION
-          value: "us-east-1"
-        # OTel para Go requer instrumentação no código, mas as envs ajudam o SDK
+        - name: OCI_QUEUE_ID
+          valueFrom:
+            secretKeyRef:
+              name: donation-service-secret
+              key: OCI_QUEUE_ID
+        - name: OCI_QUEUE_ENDPOINT
+          valueFrom:
+            secretKeyRef:
+              name: donation-service-secret
+              key: OCI_QUEUE_ENDPOINT
+        # OpenTelemetry / New Relic
         - name: OTEL_SERVICE_NAME
           value: "donation-service"
         - name: OTEL_EXPORTER_OTLP_ENDPOINT
@@ -72,4 +78,6 @@ metadata:
   namespace: togglemaster
 type: Opaque
 stringData:
-  DATABASE_URL: "postgres://togglemaster_user:togglepass123@postgres.togglemaster.svc.cluster.local:5432/solidary_db"
+  DATABASE_URL: "postgres://togglemaster_user:togglepass123@postgres.togglemaster.svc.cluster.local:5432/donation_db"
+  OCI_QUEUE_ID: "SUBSTITUIR_PELO_OCID_DA_QUEUE"
+  OCI_QUEUE_ENDPOINT: "SUBSTITUIR_PELO_ENDPOINT_DA_QUEUE"

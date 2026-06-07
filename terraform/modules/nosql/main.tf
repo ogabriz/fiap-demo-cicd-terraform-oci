@@ -15,14 +15,17 @@ resource "oci_nosql_table" "main" {
 CREATE TABLE IF NOT EXISTS ${var.table_name} (
   id STRING,
   name STRING,
+  email STRING,
+  ngo_id STRING,
+  registered_at STRING,
   created_at STRING,
   PRIMARY KEY(id)
 )
 DDL
 
   table_limits {
-    max_read_units  = 50
-    max_write_units = 50
+    max_read_units     = 50
+    max_write_units    = 50
     max_storage_in_gbs = 1
   }
 }
