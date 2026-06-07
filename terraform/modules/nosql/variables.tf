@@ -4,6 +4,6 @@ variable "compartment_id" {
 }
 
 variable "table_name" {
-  description = "Name of the OCI NoSQL table to create for storing analytics events"
+  description = "Name of the OCI NoSQL table to create for storing volunteer data"
   type        = string
 }

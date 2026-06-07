@@ -1,38 +1,46 @@
 #!/bin/bash
 
-# Simple script to test the services from the terminal
+# Script para testar os servicos SolidaryTech na OCI
 # Usage: ./scripts/test-services.sh [LOAD_BALANCER_IP]
 
 IP=${1:-"localhost"}
-PORT=${2:-"8001"}
-URL="http://$IP:$PORT"
-MASTER_KEY="mymasterkey"
+URL="http://$IP"
 
-echo "--- Testing Auth Service at $URL ---"
+echo "=== Teste dos Servicos SolidaryTech ==="
 
-echo "1. Health Check:"
-curl -s "$URL/health" | jq . || echo "Failed to connect to /health"
+echo -e "\n--- 1. Health Checks ---"
+echo -n "NGO Service:       "
+curl -s -o /dev/null -w "%{http_code}" "$URL/ngos/health" 2>/dev/null || echo "FAIL"
+echo ""
+echo -n "Donation Service:  "
+curl -s -o /dev/null -w "%{http_code}" "$URL/donations/health" 2>/dev/null || echo "FAIL"
+echo ""
+echo -n "Volunteer Service: "
+curl -s -o /dev/null -w "%{http_code}" "$URL/volunteers/health" 2>/dev/null || echo "FAIL"
+echo ""
 
-echo -e "\n2. Database Health (Smoke Test):"
-curl -s "$URL/health/db" | jq . || echo "Failed to connect to /health/db"
-
-echo -e "\n3. Create API Key (Admin):"
-CREATE_RESPONSE=$(curl -s -X POST "$URL/admin/keys" \
-  -H "Authorization: Bearer $MASTER_KEY" \
+echo -e "\n--- 2. Criar ONG ---"
+curl -s -X POST "$URL/ngos/ngos" \
   -H "Content-Type: application/json" \
-  -d '{"name": "CLI Test Key"}')
+  -d '{"name":"ONG Teste","description":"Teste automatizado","contact_email":"teste@solidarytech.com"}' | jq . 2>/dev/null || echo "FAIL"
 
-echo "$CREATE_RESPONSE" | jq .
+echo -e "\n--- 3. Listar ONGs ---"
+curl -s "$URL/ngos/ngos" | jq . 2>/dev/null || echo "FAIL"
 
-# Extract the key if jq is available and request succeeded
-API_KEY=$(echo "$CREATE_RESPONSE" | jq -r '.key' 2>/dev/null)
+echo -e "\n--- 4. Criar Doacao ---"
+curl -s -X POST "$URL/donations/donations" \
+  -H "Content-Type: application/json" \
+  -d '{"ngo_id":1,"amount":100.00,"donor_name":"Doador Teste"}' | jq . 2>/dev/null || echo "FAIL"
 
-if [ "$API_KEY" != "null" ] && [ -n "$API_KEY" ]; then
-    echo -e "\n4. Validate Generated Key ($API_KEY):"
-    curl -s -X GET "$URL/validate" \
-      -H "Authorization: Bearer $API_KEY" | jq .
-else
-    echo -e "\n4. Skip Validate (No key generated)"
-fi
+echo -e "\n--- 5. Listar Doacoes ---"
+curl -s "$URL/donations/donations" | jq . 2>/dev/null || echo "FAIL"
 
-echo -e "\n--- Tests Completed ---"
+echo -e "\n--- 6. Registrar Voluntario ---"
+curl -s -X POST "$URL/volunteers/volunteers" \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Voluntario Teste","email":"vol@solidarytech.com","ngo_id":"1"}' | jq . 2>/dev/null || echo "FAIL"
+
+echo -e "\n--- 7. Listar Voluntarios (ONG 1) ---"
+curl -s "$URL/volunteers/volunteers/1" | jq . 2>/dev/null || echo "FAIL"
+
+echo -e "\n=== Testes Completos ==="

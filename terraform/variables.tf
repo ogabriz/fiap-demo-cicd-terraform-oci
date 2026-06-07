@@ -14,22 +14,12 @@ variable "fingerprint" {
 }
 
 variable "region" {
-  description = "OCI region where resources will be deployed (e.g. sa-vinhedo-1)"
+  description = "OCI region where resources will be deployed (e.g. sa-saopaulo-1)"
   type        = string
 }
 
 variable "compartment_id" {
   description = "OCID of the OCI compartment where all resources will be created"
-  type        = string
-}
-
-variable "ssh_public_key" {
-  description = "SSH public key content to be injected into compute instances for remote access"
-  type        = string
-}
-
-variable "image_id" {
-  description = "OCID of the OCI compute image used for provisioning VM instances"
   type        = string
 }
 

@@ -28,11 +28,9 @@ EOF
 
 resource "kubectl_manifest" "argocd_apps" {
   for_each = toset([
-    "auth-service",
-    "flag-service",
-    "targeting-service",
-    "evaluation-service",
-    "analytics-service"
+    "ngo-service",
+    "donation-service",
+    "volunteer-service"
   ])
 
   yaml_body = <<EOF

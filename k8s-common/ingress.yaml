@@ -11,46 +11,6 @@ spec:
   rules:
   - http:
       paths:
-      - path: /auth(/|$)(.*)
-        pathType: ImplementationSpecific
-        backend:
-          service:
-            name: auth-service
-            port:
-              number: 80
-
-      - path: /flags(/|$)(.*)
-        pathType: ImplementationSpecific
-        backend:
-          service:
-            name: flag-service
-            port:
-              number: 80
-
-      - path: /target(/|$)(.*)
-        pathType: ImplementationSpecific
-        backend:
-          service:
-            name: targeting-service
-            port:
-              number: 80
-
-      - path: /analytics(/|$)(.*)
-        pathType: ImplementationSpecific
-        backend:
-          service:
-            name: analytics-service
-            port:
-              number: 80
-
-      - path: /evaluate(/|$)(.*)
-        pathType: ImplementationSpecific
-        backend:
-          service:
-            name: evaluation-service
-            port:
-              number: 80
-
       - path: /ngos(/|$)(.*)
         pathType: ImplementationSpecific
         backend:
@@ -74,5 +34,3 @@ spec:
             name: volunteer-service
             port:
               number: 80
-
-              

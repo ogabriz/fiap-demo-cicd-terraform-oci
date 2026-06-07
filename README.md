@@ -31,7 +31,7 @@ Toda a infraestrutura roda na **Oracle Cloud Infrastructure (OCI)**.
 |---|---|
 | Linguagem | Python 3.9+ |
 | Framework | Flask |
-| Banco de Dados | PostgreSQL (VM OCI) |
+| Banco de Dados | PostgreSQL (in-cluster OKE) |
 | Porta Local | `8081` |
 
 ### Descricao
@@ -44,7 +44,7 @@ Responsavel pelo gerenciamento e cadastro das ONGs parceiras da plataforma.
 | Item | Valor |
 |---|---|
 | Linguagem | Go 1.21+ |
-| Banco de Dados | PostgreSQL (VM OCI) |
+| Banco de Dados | PostgreSQL (in-cluster OKE) |
 | Mensageria | OCI Queue |
 | Porta Local | `8082` |
 
@@ -82,8 +82,6 @@ Utiliza armazenamento NoSQL nativo da OCI (OCI NoSQL Database) com foco em escal
 │   ├── modules/
 │   │   ├── networking/     # VCN, Subnets, Gateways
 │   │   ├── oke/            # Oracle Kubernetes Engine
-│   │   ├── postgres/       # VM PostgreSQL (cloud-init)
-│   │   ├── redis/          # VM Redis (cloud-init)
 │   │   ├── nosql/          # OCI NoSQL Table
 │   │   ├── queue/          # OCI Queue
 │   │   ├── ocir/           # Oracle Container Image Registry
@@ -272,12 +270,12 @@ Toda a infraestrutura e provisionada via Terraform na Oracle Cloud:
 |---|---|
 | VCN + Subnets + Gateways | `modules/networking` |
 | Oracle Kubernetes Engine (OKE) | `modules/oke` |
-| PostgreSQL VM (cloud-init) | `modules/postgres` |
-| Redis VM (cloud-init) | `modules/redis` |
 | OCI NoSQL Table | `modules/nosql` |
 | OCI Queue | `modules/queue` |
 | Oracle Container Image Registry | `modules/ocir` |
-| Prometheus + Grafana + Loki | `modules/observability` |
+| Prometheus + Grafana + Loki + OTel | `modules/observability` |
+| PostgreSQL (in-cluster) | `k8s-infra/postgres.yaml` |
+| Redis (in-cluster) | `k8s-infra/redis.yaml` |
 
 ### Deploy da Infraestrutura
 
@@ -359,7 +357,7 @@ O `donation-service` deve ser tratado como componente critico da plataforma.
 | `OCI_PRIVATE_KEY` | Chave privada OCI (base64) |
 | `OCI_REGION` | Regiao OCI (ex: sa-saopaulo-1) |
 | `OCI_COMPARTMENT_ID` | OCID do Compartment |
-| `OCI_SSH_PUBLIC_KEY` | Chave SSH publica |
+
 | `OCI_AUTH_TOKEN` | Auth Token para OCIR |
 | `OCI_TENANCY_NAMESPACE` | Namespace do Tenancy |
 | `OCI_USERNAME` | Username OCI para OCIR |
