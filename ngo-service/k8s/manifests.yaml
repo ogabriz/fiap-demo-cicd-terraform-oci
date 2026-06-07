@@ -68,4 +68,4 @@ metadata:
   namespace: togglemaster
 type: Opaque
 stringData:
-  DATABASE_URL: "postgres://togglemaster_user:togglepass123@postgres-vm.dbsubnet.togglemastervcn.oraclevcn.com:5432/ngos_db"
+  DATABASE_URL: "postgres://togglemaster_user:togglepass123@postgres.togglemaster.svc.cluster.local:5432/solidary_db"
