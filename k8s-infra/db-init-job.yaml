@@ -8,7 +8,7 @@ spec:
     spec:
       containers:
       - name: db-init
-        image: postgres:15-alpine
+        image: docker.io/library/postgres:15-alpine
         env:
         - name: PGPASSWORD
           value: "togglepass123"
@@ -47,7 +47,7 @@ spec:
     spec:
       containers:
       - name: db-init
-        image: postgres:15-alpine
+        image: docker.io/library/postgres:15-alpine
         env:
         - name: PGPASSWORD
           value: "togglepass123"

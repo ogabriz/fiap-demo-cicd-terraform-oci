@@ -80,7 +80,15 @@ kubectl create secret docker-registry ocir-secret \
 
 ### Passo 3: Deploy PostgreSQL e Redis
 
+> **Nota:** PostgreSQL e Redis usam `emptyDir` (sem PVC), pois o CSI driver OCI Block Volume
+> pode nao estar disponivel em clusters Free Tier. Dados persistem enquanto o pod existir.
+
 ```bash
+# Remover deployments e PVCs antigos (evitar conflitos de ReplicaSets)
+kubectl delete deployment postgres redis -n togglemaster --ignore-not-found
+kubectl delete pvc postgres-pvc redis-pvc -n togglemaster --ignore-not-found
+
+# Aplicar manifests corrigidos
 kubectl apply -f k8s-infra/postgres.yaml
 kubectl apply -f k8s-infra/redis.yaml
 
@@ -112,6 +120,9 @@ kubectl apply -f volunteer-service/k8s/manifests.yaml
 ```bash
 kubectl get pods -n togglemaster
 # Todos os pods devem estar Running
+# Os servicos (ngo, donation) tem initContainer que aguarda postgres ficar pronto
+# E normal ficarem em Init:0/1 ate o postgres estar disponivel
+#
 # Se algum servico estiver em ImagePullBackOff, verifique o secret:
 #   kubectl describe pod <nome-do-pod> -n togglemaster | grep -A5 Events
 ```
@@ -508,18 +519,25 @@ kubectl delete secret ocir-secret -n togglemaster
 
 ### Pod em ImageInspectError
 
-Geralmente e um problema no node do cluster. Solucoes:
+O OKE usa CRI-O que requer nomes de imagem totalmente qualificados.
+Se voce vir `short name mode is enforcing`, a imagem precisa do prefixo `docker.io/library/`.
 
 ```bash
-# Deletar o pod para forcar re-scheduling
+# Verificar o erro
+kubectl describe pod <pod-name> -n togglemaster | grep -A5 "InspectFailed"
+
+# Se for "short name mode is enforcing":
+# Garanta que os manifests usam imagens qualificadas:
+#   docker.io/library/postgres:15-alpine (NAO postgres:15-alpine)
+#   docker.io/library/redis:7-alpine (NAO redis:7-alpine)
+
+# Deletar pods com erro e reaplicar
 kubectl delete pod <pod-name> -n togglemaster
-
-# Se persistir, verificar se o node tem espaco em disco
-kubectl describe node <node-name> | grep -A5 "Conditions"
-
-# Para postgres, se o PVC ja existia antes, pode ser necessario recriar:
-kubectl delete pvc postgres-pvc -n togglemaster
 kubectl apply -f k8s-infra/postgres.yaml
+kubectl apply -f k8s-infra/redis.yaml
+
+# Se o node estiver com disco cheio:
+kubectl describe node <node-name> | grep -A5 "Conditions"
 ```
 
 ### Pod em CrashLoopBackOff
