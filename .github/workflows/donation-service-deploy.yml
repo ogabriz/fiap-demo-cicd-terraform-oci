@@ -106,18 +106,30 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up OCI CLI
-        uses: oracle-actions/setup-oci-cli@v1
-        with:
-          user: ${{ secrets.OCI_USER_OCID }}
-          tenancy: ${{ secrets.OCI_TENANCY_OCID }}
-          fingerprint: ${{ secrets.OCI_FINGERPRINT }}
-          region: ${{ env.OCI_REGION }}
-          private_key: ${{ secrets.OCI_PRIVATE_KEY }}
+      - name: Configure OCI Credentials
+        run: |
+          mkdir -p ~/.oci
+          echo "${{ secrets.OCI_PRIVATE_KEY }}" | base64 -d > ~/.oci/oci_api_key.pem
+          chmod 600 ~/.oci/oci_api_key.pem
+          cat > ~/.oci/config << EOF
+          [DEFAULT]
+          user=${{ secrets.OCI_USER_OCID }}
+          fingerprint=${{ secrets.OCI_FINGERPRINT }}
+          tenancy=${{ secrets.OCI_TENANCY_OCID }}
+          region=${{ env.OCI_REGION }}
+          key_file=/home/runner/.oci/oci_api_key.pem
+          EOF
+          sed -i 's/^[[:space:]]*//' ~/.oci/config
+          chmod 600 ~/.oci/config
+
+      - name: Install OCI CLI
+        run: |
+          curl -L https://raw.githubusercontent.com/oracle/oci-cli/master/scripts/install/install.sh | bash -s -- --accept-all-defaults
+          echo "$HOME/bin" >> $GITHUB_PATH
 
       - name: Get Kubeconfig
         run: |
-          oci ce cluster create-kubeconfig --cluster-id ${{ secrets.OCI_OKE_CLUSTER_ID }} --file $HOME/.kube/config --region ${{ env.OCI_REGION }} --token-version 2.0.0 
+          $HOME/bin/oci ce cluster create-kubeconfig --cluster-id ${{ secrets.OCI_OKE_CLUSTER_ID }} --file $HOME/.kube/config --region ${{ env.OCI_REGION }} --token-version 2.0.0
 
       - name: Create OCIR Image Pull Secret
         run: |
