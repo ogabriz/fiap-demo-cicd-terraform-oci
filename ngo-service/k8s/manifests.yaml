@@ -15,6 +15,8 @@ spec:
       labels:
         app: ngo-service
     spec:
+      imagePullSecrets:
+      - name: ocir-secret
       containers:
       - name: ngo-service
         image: sa-saopaulo-1.ocir.io/grqkmwwimskh/togglemaster/ngo-service:latest

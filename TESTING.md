@@ -48,33 +48,72 @@ terraform output oke_cluster_id
 
 PostgreSQL e Redis rodam como pods dentro do cluster OKE (nao mais em VMs externas).
 
+### Passo 1: Limpar servicos antigos
+
 ```bash
-# Limpar pods antigos (se existirem servicos antigos)
 kubectl delete deployment analytics-service auth-service evaluation-service flag-service targeting-service -n togglemaster --ignore-not-found
 kubectl delete svc analytics-service auth-service evaluation-service flag-service targeting-service -n togglemaster --ignore-not-found
 kubectl delete job auth-db-init flag-db-init targeting-db-init -n togglemaster --ignore-not-found
+```
 
-# Deploy PostgreSQL e Redis no cluster
+### Passo 2: Criar Secret do OCIR (obrigatorio para pull de imagens privadas)
+
+Os servicos usam imagens armazenadas no OCI Container Registry (OCIR) que e privado.
+E necessario criar um `docker-registry` secret para que o Kubernetes consiga fazer pull das imagens.
+
+```bash
+# Substituir os valores com suas credenciais OCI:
+#   TENANCY_NAMESPACE = namespace do tenancy (ex: grqkmwwimskh)
+#   OCI_USERNAME      = usuario OCI (ex: oracleidentitycloudservice/seu@email.com)
+#   AUTH_TOKEN         = Auth Token gerado no OCI Console (Identity > Users > Auth Tokens)
+
+kubectl create secret docker-registry ocir-secret \
+  --docker-server=sa-saopaulo-1.ocir.io \
+  --docker-username="TENANCY_NAMESPACE/OCI_USERNAME" \
+  --docker-password="AUTH_TOKEN" \
+  --docker-email=noreply@oci.com \
+  -n togglemaster
+```
+
+> **Nota:** Se o secret ja existir, delete e recrie:
+> `kubectl delete secret ocir-secret -n togglemaster --ignore-not-found` antes de criar.
+
+### Passo 3: Deploy PostgreSQL e Redis
+
+```bash
 kubectl apply -f k8s-infra/postgres.yaml
 kubectl apply -f k8s-infra/redis.yaml
 
 # Aguardar pods ficarem prontos
 kubectl rollout status deployment/postgres -n togglemaster --timeout=120s
 kubectl rollout status deployment/redis -n togglemaster --timeout=120s
+```
 
-# Inicializar bancos de dados
+### Passo 4: Inicializar bancos de dados
+
+```bash
 kubectl delete job db-init-ngo db-init-donation -n togglemaster --ignore-not-found
 kubectl apply -f k8s-infra/db-init-job.yaml
 kubectl wait --for=condition=complete job/db-init-ngo -n togglemaster --timeout=120s
 kubectl wait --for=condition=complete job/db-init-donation -n togglemaster --timeout=120s
+```
 
-# Deploy do ingress
+### Passo 5: Deploy dos servicos
+
+```bash
 kubectl apply -f k8s-common/ingress.yaml
-
-# Deploy dos servicos (as imagens devem estar no OCIR)
 kubectl apply -f ngo-service/k8s/manifests.yaml
 kubectl apply -f donation-service/k8s/manifests.yaml
 kubectl apply -f volunteer-service/k8s/manifests.yaml
+```
+
+### Passo 6: Verificar status
+
+```bash
+kubectl get pods -n togglemaster
+# Todos os pods devem estar Running
+# Se algum servico estiver em ImagePullBackOff, verifique o secret:
+#   kubectl describe pod <nome-do-pod> -n togglemaster | grep -A5 Events
 ```
 
 ---
@@ -446,6 +485,42 @@ echo "=== Validacao completa ==="
 ---
 
 ## Troubleshooting
+
+### Pod em ImagePullBackOff
+
+Significa que o Kubernetes nao consegue baixar a imagem do OCIR (registro privado).
+
+```bash
+# Verificar o erro detalhado
+kubectl describe pod <pod-name> -n togglemaster | grep -A10 Events
+
+# Verificar se o secret ocir-secret existe
+kubectl get secret ocir-secret -n togglemaster
+
+# Se nao existir, criar (ver secao 1.1 Passo 2)
+# Se existir mas com credenciais erradas, recriar:
+kubectl delete secret ocir-secret -n togglemaster
+# ... e criar novamente com as credenciais corretas
+
+# Verificar se a imagem existe no OCIR
+# OCI Console > Developer Services > Container Registry
+```
+
+### Pod em ImageInspectError
+
+Geralmente e um problema no node do cluster. Solucoes:
+
+```bash
+# Deletar o pod para forcar re-scheduling
+kubectl delete pod <pod-name> -n togglemaster
+
+# Se persistir, verificar se o node tem espaco em disco
+kubectl describe node <node-name> | grep -A5 "Conditions"
+
+# Para postgres, se o PVC ja existia antes, pode ser necessario recriar:
+kubectl delete pvc postgres-pvc -n togglemaster
+kubectl apply -f k8s-infra/postgres.yaml
+```
 
 ### Pod em CrashLoopBackOff
 

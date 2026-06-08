@@ -114,6 +114,16 @@ jobs:
         run: |
           oci ce cluster create-kubeconfig --cluster-id ${{ secrets.OCI_OKE_CLUSTER_ID }} --file $HOME/.kube/config --region ${{ env.OCI_REGION }} --token-version 2.0.0 
 
+      - name: Create OCIR Image Pull Secret
+        run: |
+          kubectl create secret docker-registry ocir-secret \
+            --docker-server=${{ env.OCI_REGION }}.ocir.io \
+            --docker-username="${{ secrets.OCI_TENANCY_NAMESPACE }}/${{ secrets.OCI_USERNAME }}" \
+            --docker-password="${{ secrets.OCI_AUTH_TOKEN }}" \
+            --docker-email=noreply@oci.com \
+            -n togglemaster \
+            --dry-run=client -o yaml | kubectl apply -f -
+
       - name: Deploy Infrastructure (PostgreSQL + Redis)
         run: |
           kubectl apply -f k8s-infra/postgres.yaml
