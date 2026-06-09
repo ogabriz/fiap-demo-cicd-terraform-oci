@@ -39,16 +39,8 @@ jobs:
           region=${{ secrets.OCI_REGION }}
           key_file=/home/runner/.oci/oci_api_key.pem
           EOF
-          
+          sed -i 's/^[[:space:]]*//' ~/.oci/config
           chmod 600 ~/.oci/config
-
-      # 🔥 NOVO STEP PARA DEBUG DO FINGERPRIN
-      - name: Debug OCI Fingerprint
-        run: |
-          echo "Fingerprint da chave usada no runner:"
-          openssl rsa -pubout -outform DER -in ~/.oci/oci_api_key.pem | openssl md5 -c
-          echo "Fingerprint salvo no Secret:"
-          echo "${{ secrets.OCI_FINGERPRINT }}"
 
       - name: Install OCI CLI
         run: |

@@ -33,6 +33,5 @@ plan.txt
 outputs.json
 
 # Go binaries
-auth-service/auth-service
-evaluation-service/evaluation-service
+donation-service/donation-service
 __pycache__/
