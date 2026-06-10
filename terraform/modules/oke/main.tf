@@ -42,13 +42,13 @@ resource "oci_containerengine_cluster" "main" {
   name           = "togglemaster-oke"
 
   vcn_id             = var.vcn_id
-  kubernetes_version = "v1.36.0"
+  kubernetes_version = "v1.34.2"
 
- # lifecycle {
-  #  ignore_changes = [
-   #   kubernetes_version
-    #]
-  #}
+  lifecycle {
+    ignore_changes = [
+      kubernetes_version
+    ]
+  }
 
   endpoint_config {
     is_public_ip_enabled = true
