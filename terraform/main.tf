@@ -41,4 +41,6 @@ module "observability" {
   namespace            = "monitoring"
   discord_webhook_url  = var.discord_webhook_url
   newrelic_license_key = var.newrelic_license_key
+
+  depends_on = [module.oke]
 }

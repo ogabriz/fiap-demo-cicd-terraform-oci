@@ -5,11 +5,13 @@ resource "helm_release" "argocd" {
   namespace        = "argocd"
   create_namespace = true
   version          = "7.7.1"
-  timeout          = 600
+  timeout          = 900
   force_update     = true
   cleanup_on_fail  = true
   replace          = true
   wait             = false
+
+  depends_on = [oci_containerengine_node_pool.pool]
 
   values = [<<EOF
 server:
