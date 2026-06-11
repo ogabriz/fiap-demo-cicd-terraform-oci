@@ -157,16 +157,16 @@ resource "helm_release" "loki_stack" {
   chart           = "loki-stack"
   namespace       = kubernetes_namespace_v1.monitoring.metadata[0].name
   version         = "2.10.2"
-  timeout         = 600
+  timeout         = 900
   force_update    = true
   cleanup_on_fail = true
   replace         = true
+  wait            = false
 
   values = [<<EOF
 loki:
   persistence:
-    enabled: true
-    size: 10Gi
+    enabled: false
 promtail:
   enabled: true
   config:
