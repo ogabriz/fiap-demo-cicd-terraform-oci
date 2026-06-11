@@ -23,7 +23,7 @@ spec:
         command: ['sh', '-c', 'until nc -z postgres.togglemaster.svc.cluster.local 5432; do echo waiting for postgres; sleep 2; done']
       containers:
       - name: donation-service
-        image: sa-saopaulo-1.ocir.io/grqkmwwimskh/togglemaster/donation-service:latest
+        image: sa-saopaulo-1.ocir.io/grqkmwwimskh/hackathon-repo/donation-service:latest
         ports:
         - containerPort: 8082
         env:

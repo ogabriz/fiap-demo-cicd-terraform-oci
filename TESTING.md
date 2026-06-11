@@ -54,7 +54,7 @@ O Terraform provisiona o cluster, VCN e recursos OCI; os manifests K8s sao aplic
 
 ### 3.1 Criar Secret do OCIR (obrigatorio)
 
-Os servicos usam imagens privadas do OCI Container Registry (`hackathon-repo`).
+Os servicos usam imagens privadas do OCI Container Registry (`hackathon-repo/*`).
 O Kubernetes precisa de um `docker-registry` secret para fazer pull:
 
 ```bash
@@ -144,7 +144,7 @@ Recursos esperados:
 - **VCN:** Hackathon-vcn (10.0.0.0/16)
 - **Cluster OKE:** Hackathon-oke (versao K8s dinamica — ultima disponivel)
 - **Node Pool:** Hackathon-nodepool (VM.Standard.A1.Flex, 2 OCPUs, 16 GB)
-- **OCIR:** hackathon-repo (registro privado)
+- **OCIR:** hackathon-repo/ngo-service, hackathon-repo/donation-service, hackathon-repo/volunteer-service (registros privados)
 - **OCI Queue:** fila para donation-service
 - **OCI NoSQL:** togglemaster_table para volunteer-service
 - **Observability:** Prometheus + Grafana + Loki + AlertManager
@@ -581,7 +581,7 @@ echo "=== Validacao completa ==="
 
 ### Pod em ImagePullBackOff
 
-O Kubernetes nao consegue baixar a imagem do OCIR (registro privado `hackathon-repo`).
+O Kubernetes nao consegue baixar a imagem do OCIR (registros privados `hackathon-repo/*`).
 
 ```bash
 # Verificar o erro detalhado
