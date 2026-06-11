@@ -68,7 +68,7 @@ locals {
 resource "oci_containerengine_cluster" "main" {
 
   compartment_id = var.compartment_id
-  name           = "togglemaster-oke"
+  name           = "Hackathon-oke"
 
   vcn_id             = var.vcn_id
   kubernetes_version = local.kubernetes_version
@@ -91,7 +91,7 @@ resource "oci_containerengine_cluster" "main" {
 
 resource "oci_containerengine_node_pool" "pool" {
 
-  name           = "togglemaster-nodepool"
+  name           = "Hackathon-nodepool"
   cluster_id     = oci_containerengine_cluster.main.id
   compartment_id = var.compartment_id
 

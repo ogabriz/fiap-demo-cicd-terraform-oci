@@ -10,15 +10,15 @@ terraform {
 resource "oci_core_vcn" "main" {
   compartment_id = var.compartment_id
   cidr_block     = "10.0.0.0/16"
-  display_name   = "togglemaster-vcn"
-  dns_label      = "togglemastervcn"
+  display_name   = "Hackathon-vcn"
+  dns_label      = "hackathonvcn"
 }
 
 # Internet Gateway
 resource "oci_core_internet_gateway" "igw" {
   compartment_id = var.compartment_id
   vcn_id         = oci_core_vcn.main.id
-  display_name   = "togglemaster-igw"
+  display_name   = "Hackathon-igw"
   enabled        = true
 }
 
