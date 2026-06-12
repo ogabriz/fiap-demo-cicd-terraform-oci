@@ -89,8 +89,8 @@ jobs:
           platforms: linux/arm64
           push: true
           tags: |
-            ${{ env.OCI_REGION }}.ocir.io/${{ secrets.OCI_TENANCY_NAMESPACE }}/togglemaster/${{ env.SERVICE_NAME }}:${{ github.sha }}
-            ${{ env.OCI_REGION }}.ocir.io/${{ secrets.OCI_TENANCY_NAMESPACE }}/togglemaster/${{ env.SERVICE_NAME }}:latest
+            ${{ env.OCI_REGION }}.ocir.io/${{ secrets.OCI_TENANCY_NAMESPACE }}/hackathon-repo/${{ env.SERVICE_NAME }}:${{ github.sha }}
+            ${{ env.OCI_REGION }}.ocir.io/${{ secrets.OCI_TENANCY_NAMESPACE }}/hackathon-repo/${{ env.SERVICE_NAME }}:latest
 
   deploy:
     name: "Deploy to OKE"
@@ -154,5 +154,5 @@ jobs:
         run: |
           kubectl apply -f k8s-common/ingress.yaml
           kubectl apply -f ngo-service/k8s/manifests.yaml
-          kubectl set image deployment/ngo-service ngo-service=${{ env.OCI_REGION }}.ocir.io/${{ secrets.OCI_TENANCY_NAMESPACE }}/togglemaster/${{ env.SERVICE_NAME }}:${{ github.sha }} -n togglemaster
+          kubectl set image deployment/ngo-service ngo-service=${{ env.OCI_REGION }}.ocir.io/${{ secrets.OCI_TENANCY_NAMESPACE }}/hackathon-repo/${{ env.SERVICE_NAME }}:${{ github.sha }} -n togglemaster
           kubectl rollout status deployment/ngo-service -n togglemaster

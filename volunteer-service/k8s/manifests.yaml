@@ -19,7 +19,7 @@ spec:
       - name: ocir-secret
       containers:
       - name: volunteer-service
-        image: sa-saopaulo-1.ocir.io/grqkmwwimskh/togglemaster/volunteer-service:latest
+        image: sa-saopaulo-1.ocir.io/grqkmwwimskh/hackathon-repo/volunteer-service:latest
         ports:
         - containerPort: 8083
         env:
