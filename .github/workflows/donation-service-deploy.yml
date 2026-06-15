@@ -141,6 +141,13 @@ jobs:
             -n togglemaster \
             --dry-run=client -o yaml | kubectl apply -f -
 
+      - name: Create New Relic Secret
+        run: |
+          kubectl create secret generic newrelic-secret \
+            --from-literal=license-key="${{ secrets.NEW_RELIC_LICENSE_KEY }}" \
+            -n togglemaster \
+            --dry-run=client -o yaml | kubectl apply -f -
+
       - name: Deploy Infrastructure (PostgreSQL + Redis)
         run: |
           kubectl apply -f k8s-infra/postgres.yaml
