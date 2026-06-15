@@ -70,7 +70,7 @@ jobs:
     name: "Build & Push Image"
     runs-on: ubuntu-latest
     needs: [ lint-and-test, security-scan ]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -101,7 +101,7 @@ jobs:
     name: "Deploy to OKE"
     runs-on: ubuntu-latest
     needs: [ build-and-push ]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -143,10 +143,16 @@ jobs:
 
       - name: Create New Relic Secret
         run: |
-          kubectl create secret generic newrelic-secret \
-            --from-literal=license-key="${{ secrets.NEW_RELIC_LICENSE_KEY }}" \
-            -n togglemaster \
-            --dry-run=client -o yaml | kubectl apply -f -
+          NR_KEY="${{ secrets.NEW_RELIC_LICENSE_KEY }}"
+          if [ -n "$NR_KEY" ]; then
+            kubectl create secret generic newrelic-secret \
+              --from-literal=license-key="$NR_KEY" \
+              --from-literal=otlp-headers="api-key=$NR_KEY" \
+              -n togglemaster \
+              --dry-run=client -o yaml | kubectl apply -f -
+          else
+            echo "NEW_RELIC_LICENSE_KEY not set, skipping newrelic-secret creation"
+          fi
 
       - name: Deploy Infrastructure (PostgreSQL + Redis)
         run: |
@@ -167,4 +173,24 @@ jobs:
           kubectl apply -f k8s-common/ingress.yaml
           kubectl apply -f donation-service/k8s/manifests.yaml
           kubectl set image deployment/donation-service donation-service=${{ env.OCI_REGION }}.ocir.io/${{ secrets.OCI_TENANCY_NAMESPACE }}/hackathon-repo/${{ env.SERVICE_NAME }}:${{ github.sha }} -n togglemaster
-          kubectl rollout status deployment/donation-service -n togglemaster
+          kubectl rollout status deployment/donation-service -n togglemaster --timeout=300s || {
+            echo "========================================"
+            echo "DEPLOYMENT FAILED - COLLECTING EVIDENCE"
+            echo "========================================"
+            echo ""
+            echo "=== PODS ==="
+            kubectl get pods -n togglemaster -o wide
+            echo ""
+            echo "=== SECRETS ==="
+            kubectl get secret -n togglemaster
+            echo ""
+            echo "=== POD DETAILS ==="
+            kubectl describe pods -l app=donation-service -n togglemaster
+            echo ""
+            echo "=== POD LOGS ==="
+            for pod in $(kubectl get pods -n togglemaster -l app=donation-service -o jsonpath='{.items[*].metadata.name}'); do
+              echo "----- LOGS: $pod -----"
+              kubectl logs "$pod" -n togglemaster --all-containers=true || true
+            done
+            exit 1
+          }
