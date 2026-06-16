@@ -12,28 +12,24 @@ spec:
         env:
         - name: PGPASSWORD
           value: "togglepass123"
-        command: ["psql"]
-        args: 
-        - "-h"
-        - "postgres"
-        - "-U"
-        - "togglemaster_user"
-        - "-d"
-        - "ngo_db"
-        - "-c"
+        command: ["sh", "-c"]
+        args:
         - |
-          CREATE TABLE IF NOT EXISTS ngos (
-              id SERIAL PRIMARY KEY,
-              name VARCHAR(150) NOT NULL,
-              email VARCHAR(100) UNIQUE NOT NULL,
-              cause VARCHAR(100) NOT NULL,
-              city VARCHAR(100) NOT NULL,
-              created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-          );
-          INSERT INTO ngos (name, email, cause, city) VALUES 
-          ('Anjos de Patas', 'contato@anjosdepatas.org', 'Protecao Animal', 'Osasco'),
-          ('Educa Mais', 'info@educamais.org', 'Educacao', 'Sao Paulo')
-          ON CONFLICT (email) DO NOTHING;
+          psql -h postgres -U togglemaster_user -d postgres -c "SELECT 'CREATE DATABASE ngo_db' WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'ngo_db')\gexec" && \
+          psql -h postgres -U togglemaster_user -d ngo_db -c "
+            CREATE TABLE IF NOT EXISTS ngos (
+                id SERIAL PRIMARY KEY,
+                name VARCHAR(150) NOT NULL,
+                email VARCHAR(100) UNIQUE NOT NULL,
+                cause VARCHAR(100) NOT NULL,
+                city VARCHAR(100) NOT NULL,
+                created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+            );
+            INSERT INTO ngos (name, email, cause, city) VALUES
+            ('Anjos de Patas', 'contato@anjosdepatas.org', 'Protecao Animal', 'Osasco'),
+            ('Educa Mais', 'info@educamais.org', 'Educacao', 'Sao Paulo')
+            ON CONFLICT (email) DO NOTHING;
+          "
       restartPolicy: OnFailure
   backoffLimit: 4
 ---
@@ -51,23 +47,19 @@ spec:
         env:
         - name: PGPASSWORD
           value: "togglepass123"
-        command: ["psql"]
-        args: 
-        - "-h"
-        - "postgres"
-        - "-U"
-        - "togglemaster_user"
-        - "-d"
-        - "donation_db"
-        - "-c"
+        command: ["sh", "-c"]
+        args:
         - |
-          CREATE TABLE IF NOT EXISTS donations (
-              id SERIAL PRIMARY KEY,
-              ngo_id INT NOT NULL,
-              amount NUMERIC(10, 2) NOT NULL,
-              donor_name VARCHAR(100) NOT NULL,
-              status VARCHAR(20) NOT NULL,
-              created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-          );
+          psql -h postgres -U togglemaster_user -d postgres -c "SELECT 'CREATE DATABASE donation_db' WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'donation_db')\gexec" && \
+          psql -h postgres -U togglemaster_user -d donation_db -c "
+            CREATE TABLE IF NOT EXISTS donations (
+                id SERIAL PRIMARY KEY,
+                ngo_id INT NOT NULL,
+                amount NUMERIC(10, 2) NOT NULL,
+                donor_name VARCHAR(100) NOT NULL,
+                status VARCHAR(20) NOT NULL,
+                created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+            );
+          "
       restartPolicy: OnFailure
   backoffLimit: 4
