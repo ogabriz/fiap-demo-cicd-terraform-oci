@@ -1,5 +1,4 @@
 import os
-import sys
 import uuid
 import time
 import logging
@@ -19,28 +18,31 @@ OCI_REGION = os.getenv("OCI_REGION", "sa-saopaulo-1")
 NOSQL_COMPARTMENT_ID = os.getenv("OCI_NOSQL_COMPARTMENT_ID")
 NOSQL_TABLE_NAME = os.getenv("OCI_NOSQL_TABLE_NAME", "togglemaster_table")
 
-if not NOSQL_COMPARTMENT_ID:
-    log.critical("Erro: OCI_NOSQL_COMPARTMENT_ID nao definida.")
-    sys.exit(1)
-
 
 def get_nosql_client():
+    if not NOSQL_COMPARTMENT_ID:
+        log.warning("OCI_NOSQL_COMPARTMENT_ID nao definida. NoSQL desabilitado.")
+        return None
+
     try:
         signer = oci.auth.signers.InstancePrincipalsSecurityTokenSigner()
         return oci.nosql.NosqlClient(config={}, signer=signer)
     except Exception:
-        log.info("Instance Principal indisponivel, usando config file (~/.oci/config)")
+        log.info("Instance Principal indisponivel, tentando config file (~/.oci/config)")
 
     try:
         config = oci.config.from_file()
         return oci.nosql.NosqlClient(config)
     except Exception as e:
-        log.critical(f"Falha ao configurar OCI NoSQL client: {e}")
-        sys.exit(1)
+        log.warning(f"OCI NoSQL indisponivel (servico continua sem NoSQL): {e}")
+        return None
 
 
 nosql_client = get_nosql_client()
-log.info(f"Conectado ao OCI NoSQL - Tabela: {NOSQL_TABLE_NAME}")
+if nosql_client:
+    log.info(f"Conectado ao OCI NoSQL - Tabela: {NOSQL_TABLE_NAME}")
+else:
+    log.info("Servico iniciado sem OCI NoSQL (modo degradado)")
 
 
 @app.route('/health')
@@ -53,6 +55,9 @@ def register_volunteer():
     data = request.get_json()
     if not data or not all(k in data for k in ('name', 'email', 'ngo_id')):
         return jsonify({"error": "Campos obrigatorios ausentes"}), 400
+
+    if not nosql_client:
+        return jsonify({"error": "OCI NoSQL nao configurado"}), 503
 
     volunteer_id = str(uuid.uuid4())
     row_value = {
@@ -79,6 +84,9 @@ def register_volunteer():
 
 @app.route('/volunteers/<int:ngo_id>', methods=['GET'])
 def get_volunteers_by_ngo(ngo_id):
+    if not nosql_client:
+        return jsonify({"error": "OCI NoSQL nao configurado"}), 503
+
     try:
         statement = "SELECT * FROM {} WHERE ngo_id = '{}'".format(  # nosec B608
             NOSQL_TABLE_NAME, ngo_id)
