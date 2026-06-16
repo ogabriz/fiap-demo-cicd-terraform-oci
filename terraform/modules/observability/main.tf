@@ -47,13 +47,6 @@ grafana:
       label: grafana_datasource
       labelValue: "1"
   additionalDataSources:
-    - name: Prometheus
-      uid: prometheus
-      type: prometheus
-      access: proxy
-      url: http://prometheus-stack-kube-prom-prometheus.monitoring:9090
-      version: 1
-      isDefault: true
     - name: Loki
       uid: loki
       type: loki
@@ -167,6 +160,7 @@ resource "helm_release" "loki_stack" {
 loki:
   persistence:
     enabled: false
+  isDefault: false
 promtail:
   enabled: true
   config:
