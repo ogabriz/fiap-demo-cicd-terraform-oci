@@ -50,6 +50,40 @@ jobs:
         working-directory: ${{ env.WORKING_DIR }}
         run: terraform init
 
+      - name: Import Existing OCIR Repos
+        working-directory: ${{ env.WORKING_DIR }}
+        env:
+          TF_VAR_tenancy_ocid: ${{ secrets.OCI_TENANCY_OCID }}
+          TF_VAR_user_ocid: ${{ secrets.OCI_USER_OCID }}
+          TF_VAR_fingerprint: ${{ secrets.OCI_FINGERPRINT }}
+          TF_VAR_region: ${{ secrets.OCI_REGION }}
+          TF_VAR_compartment_id: ${{ secrets.OCI_COMPARTMENT_ID }}
+        run: |
+          declare -A REPO_MAP=(
+            ["hackathon-repo/ngo-service"]="module.ocir.oci_artifacts_container_repository.ngo_service"
+            ["hackathon-repo/donation-service"]="module.ocir.oci_artifacts_container_repository.donation_service"
+            ["hackathon-repo/volunteer-service"]="module.ocir.oci_artifacts_container_repository.volunteer_service"
+          )
+          for repo_name in "${!REPO_MAP[@]}"; do
+            resource="${REPO_MAP[$repo_name]}"
+            # Skip if already in state
+            if terraform state show "$resource" &>/dev/null; then
+              echo "✓ $resource already in state"
+              continue
+            fi
+            REPO_OCID=$(~/bin/oci artifacts container repository list \
+              --compartment-id "${{ secrets.OCI_COMPARTMENT_ID }}" \
+              --all \
+              --query "data.items[?\"display-name\"=='${repo_name}'].id | [0]" \
+              --raw-output 2>/dev/null || true)
+            if [ -n "$REPO_OCID" ] && [ "$REPO_OCID" != "null" ] && [ "$REPO_OCID" != "None" ]; then
+              echo "Importing $resource ($REPO_OCID)..."
+              terraform import -var-file=envs/dev.tfvars "$resource" "$REPO_OCID" || true
+            else
+              echo "⊘ $repo_name not found in OCI, will be created"
+            fi
+          done
+
       - name: Terraform Plan
         working-directory: ${{ env.WORKING_DIR }}
         env:
