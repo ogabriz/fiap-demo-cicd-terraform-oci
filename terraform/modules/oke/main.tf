@@ -82,6 +82,7 @@ resource "oci_containerengine_cluster" "main" {
     service_lb_subnet_ids = [var.lb_subnet_id]
   }
 
+  freeform_tags = var.tags
 }
 
 
@@ -120,6 +121,8 @@ resource "oci_containerengine_node_pool" "pool" {
     source_type = "IMAGE"
     image_id    = local.node_pool_image_id
   }
+
+  freeform_tags = var.tags
 
   depends_on = [
     oci_containerengine_cluster.main

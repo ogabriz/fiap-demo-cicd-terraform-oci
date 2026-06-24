@@ -17,4 +17,5 @@ resource "oci_queue_queue" "main" {
 
   retention_in_seconds = 604800
 
+  freeform_tags = var.tags
 }

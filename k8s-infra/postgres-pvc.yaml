@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-pvc
+  namespace: togglemaster
+  labels:
+    app: postgres
+spec:
+  accessModes:
+    - ReadWriteOnce
+  # storageClassName "oci-bv" e o StorageClass padrao provisionado pelo
+  # OKE para OCI Block Volume. Se o seu cluster usar outro nome, rode
+  # "kubectl get storageclass" e ajuste aqui.
+  storageClassName: oci-bv
+  resources:
+    requests:
+      storage: 5Gi
