@@ -28,4 +28,6 @@ DDL
     max_write_units    = 50
     max_storage_in_gbs = 1
   }
+
+  freeform_tags = var.tags
 }

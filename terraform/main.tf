@@ -1,11 +1,13 @@
 module "networking" {
   source         = "./modules/networking"
   compartment_id = var.compartment_id
+  tags           = var.common_tags
 }
 
 module "ocir" {
   source         = "./modules/ocir"
   compartment_id = var.compartment_id
+  tags           = var.common_tags
 }
 
 module "nosql" {
@@ -13,12 +15,14 @@ module "nosql" {
 
   compartment_id = var.compartment_id
   table_name     = "togglemaster_table"
+  tags           = var.common_tags
 }
 
 module "queue" {
   source = "./modules/queue"
 
   compartment_id = var.compartment_id
+  tags           = var.common_tags
 }
 
 module "oke" {
@@ -32,6 +36,7 @@ module "oke" {
   node_image          = var.oke_image
   node_subnet_id      = module.networking.node_subnet_id
   lb_subnet_id        = module.networking.lb_subnet_id
+  tags                = var.common_tags
 }
 
 module "observability" {

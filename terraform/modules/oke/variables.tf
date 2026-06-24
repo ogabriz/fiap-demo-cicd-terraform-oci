@@ -37,3 +37,9 @@ variable "lb_subnet_id" {
   description = "OCID of the subnet used for OKE-managed Load Balancers"
   type        = string
 }
+
+variable "tags" {
+  description = "Tags FinOps (freeform_tags) aplicadas ao cluster OKE e ao node pool"
+  type        = map(string)
+  default     = {}
+}

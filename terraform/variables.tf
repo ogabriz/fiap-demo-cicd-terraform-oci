@@ -46,3 +46,17 @@ variable "newrelic_license_key" {
   default     = ""
   sensitive   = true
 }
+
+# ---------------------------------------------------------------------------
+# FinOps — Tagging Strategy
+# ---------------------------------------------------------------------------
+variable "common_tags" {
+  description = "Tags FinOps obrigatorias aplicadas a todos os recursos OCI provisionados via Terraform (freeform_tags)"
+  type        = map(string)
+  default = {
+    Project     = "SolidaryTech"
+    Environment = "Production"
+    CostCenter  = "NGO-Core"
+    ManagedBy   = "Terraform"
+  }
+}

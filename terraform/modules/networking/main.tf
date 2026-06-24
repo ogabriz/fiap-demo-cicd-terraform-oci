@@ -12,6 +12,8 @@ resource "oci_core_vcn" "main" {
   cidr_block     = "10.0.0.0/16"
   display_name   = "Hackathon-vcn"
   dns_label      = "hackathonvcn"
+
+  freeform_tags = var.tags
 }
 
 # Internet Gateway
@@ -20,6 +22,8 @@ resource "oci_core_internet_gateway" "igw" {
   vcn_id         = oci_core_vcn.main.id
   display_name   = "Hackathon-igw"
   enabled        = true
+
+  freeform_tags = var.tags
 }
 
 # Route Table para acesso à internet
@@ -33,6 +37,8 @@ resource "oci_core_route_table" "public_rt" {
     destination_type  = "CIDR_BLOCK"
     network_entity_id = oci_core_internet_gateway.igw.id
   }
+
+  freeform_tags = var.tags
 }
 
 # Security List
@@ -107,6 +113,8 @@ resource "oci_core_security_list" "public_sl" {
     protocol    = "all"
     destination = "0.0.0.0/0"
   }
+
+  freeform_tags = var.tags
 }
 
 # Subnet Workers
@@ -121,6 +129,8 @@ resource "oci_core_subnet" "workers" {
   security_list_ids = [
     oci_core_security_list.public_sl.id
   ]
+
+  freeform_tags = var.tags
 }
 
 # Subnet DB
@@ -136,6 +146,8 @@ resource "oci_core_subnet" "db" {
   security_list_ids = [
     oci_core_security_list.public_sl.id
   ]
+
+  freeform_tags = var.tags
 }
 
 # Subnet OKE Nodes
@@ -150,6 +162,8 @@ resource "oci_core_subnet" "oke_nodes" {
   security_list_ids = [
     oci_core_security_list.public_sl.id
   ]
+
+  freeform_tags = var.tags
 }
 
 # Subnet OKE Load Balancer
@@ -164,4 +178,6 @@ resource "oci_core_subnet" "oke_lb" {
   security_list_ids = [
     oci_core_security_list.public_sl.id
   ]
+
+  freeform_tags = var.tags
 }

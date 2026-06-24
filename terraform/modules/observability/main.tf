@@ -117,6 +117,7 @@ additionalPrometheusRulesMap:
               severity: critical
             annotations:
               summary: "Pod {{ $labels.pod }} em CrashLoop no namespace togglemaster"
+
           - alert: HighErrorRate
             expr: sum(rate(nginx_ingress_controller_requests{status=~"5.."}[5m])) by (ingress) > 0.5
             for: 2m
@@ -124,6 +125,7 @@ additionalPrometheusRulesMap:
               severity: warning
             annotations:
               summary: "Alta taxa de erros 5xx no ingress {{ $labels.ingress }}"
+
           - alert: HighCPUUsage
             expr: sum(rate(container_cpu_usage_seconds_total{namespace="togglemaster"}[5m])) by (pod) > 0.8
             for: 5m
@@ -131,6 +133,7 @@ additionalPrometheusRulesMap:
               severity: warning
             annotations:
               summary: "Pod {{ $labels.pod }} com uso de CPU acima de 80%"
+
           - alert: PodNotReady
             expr: kube_pod_status_ready{namespace="togglemaster", condition="true"} == 0
             for: 5m
@@ -138,6 +141,46 @@ additionalPrometheusRulesMap:
               severity: critical
             annotations:
               summary: "Pod {{ $labels.pod }} nao esta Ready ha 5 minutos"
+
+          # SLI de Latencia do donation-service (Hot Path).
+          # SLO: 95% das requisicoes devem responder em ate 300ms.
+          # Este alerta dispara quando o p95 de latencia do ingress do
+          # donation-service ultrapassa o limite do SLO por 5 minutos
+          # seguidos — ou seja, e o "burn" do error budget de latencia.
+          - alert: HighLatencyDonationService
+            expr: |
+              histogram_quantile(0.95,
+                sum(rate(nginx_ingress_controller_request_duration_seconds_bucket{ingress=~".*donation.*"}[5m])) by (le)
+              ) > 0.3
+            for: 5m
+            labels:
+              severity: warning
+              slo: "donation-service-latency"
+            annotations:
+              summary: "p95 de latencia do donation-service acima de 300ms (SLO em risco)"
+
+          # Espaco em disco baixo nos nodes do cluster (impacta Postgres
+          # com volume persistente — risco direto para o RPO).
+          - alert: LowDiskSpace
+            expr: |
+              (node_filesystem_avail_bytes{fstype!~"tmpfs|overlay"} /
+               node_filesystem_size_bytes{fstype!~"tmpfs|overlay"}) < 0.15
+            for: 10m
+            labels:
+              severity: warning
+            annotations:
+              summary: "Node {{ $labels.instance }} com menos de 15% de disco livre"
+
+          # Containers mortos por falta de memoria (OOMKilled). Sinal
+          # direto de que requests/limits precisam de rightsizing.
+          - alert: ContainerOOMKilled
+            expr: |
+              kube_pod_container_status_last_terminated_reason{namespace="togglemaster", reason="OOMKilled"} == 1
+            for: 1m
+            labels:
+              severity: critical
+            annotations:
+              summary: "Container {{ $labels.container }} no pod {{ $labels.pod }} foi OOMKilled"
 EOF
   ]
 

@@ -23,6 +23,11 @@ metadata:
     app: postgres
 spec:
   replicas: 1
+  strategy:
+    # Volume ReadWriteOnce so suporta 1 pod escrevendo por vez; Recreate
+    # evita o K8s tentar subir um pod novo antes de derrubar o antigo
+    # (o que travaria esperando o volume).
+    type: Recreate
   selector:
     matchLabels:
       app: postgres
@@ -43,10 +48,11 @@ spec:
           value: "togglemaster_user"
         - name: POSTGRES_PASSWORD
           value: "togglepass123"
+        - name: PGDATA
+          value: /var/lib/postgresql/data/pgdata
         volumeMounts:
         - name: postgres-storage
           mountPath: /var/lib/postgresql/data
-          subPath: pgdata
         - name: init-scripts
           mountPath: /docker-entrypoint-initdb.d
         resources:
@@ -56,9 +62,20 @@ spec:
           limits:
             cpu: 500m
             memory: 512Mi
+        readinessProbe:
+          exec:
+            command: ["pg_isready", "-U", "togglemaster_user"]
+          initialDelaySeconds: 10
+          periodSeconds: 5
+        livenessProbe:
+          exec:
+            command: ["pg_isready", "-U", "togglemaster_user"]
+          initialDelaySeconds: 30
+          periodSeconds: 10
       volumes:
       - name: postgres-storage
-        emptyDir: {}
+        persistentVolumeClaim:
+          claimName: postgres-pvc
       - name: init-scripts
         configMap:
           name: postgres-init-script
