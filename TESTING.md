@@ -147,7 +147,7 @@ Recursos esperados:
 - **OCIR:** hackathon-repo/ngo-service, hackathon-repo/donation-service, hackathon-repo/volunteer-service (registros privados)
 - **OCI Queue:** fila para donation-service
 - **OCI NoSQL:** togglemaster_table para volunteer-service
-- **Observability:** Prometheus + Grafana + Loki + AlertManager
+- **Observability:** Prometheus + Grafana + Loki + AlertManager + Redis Exporter
 - **ArgoCD:** GitOps para 3 servicos
 
 ---
@@ -160,19 +160,22 @@ export LB_IP=$(kubectl get ingress togglemaster-ingress -n togglemaster \
 
 # NGO Service (Python/Flask — porta 8081)
 curl -s http://$LB_IP/ngos/health | jq .
+# Esperado: {"status": "ok", "service": "ngo-service"}
 
 # Donation Service (Go — porta 8082)
 curl -s http://$LB_IP/donations/health | jq .
+# Esperado: {"status": "healthy", "service": "donation-service"}
 
 # Volunteer Service (Python/Flask — porta 8083)
 curl -s http://$LB_IP/volunteers/health | jq .
+# Esperado: {"status": "ok", "service": "volunteer-service"}
 ```
-
-Resultado esperado: HTTP 200 com JSON indicando status `ok` ou `healthy`.
 
 ---
 
 ## 6. Testar NGO Service (PostgreSQL)
+
+O ngo-service gerencia ONGs usando PostgreSQL. Campos obrigatorios: `name`, `email`, `cause`, `city`.
 
 ### 6.1 Criar uma ONG
 
@@ -181,15 +184,18 @@ curl -X POST http://$LB_IP/ngos/ngos \
   -H "Content-Type: application/json" \
   -d '{
     "name": "ONG Teste SolidaryTech",
-    "description": "Organizacao de teste para validacao",
-    "contact_email": "teste@solidarytech.com"
+    "email": "teste@solidarytech.com",
+    "cause": "Educacao",
+    "city": "Sao Paulo"
   }' | jq .
+# Esperado: HTTP 201 com JSON contendo id, name, email, cause, city, created_at
 ```
 
 ### 6.2 Listar ONGs
 
 ```bash
 curl -s http://$LB_IP/ngos/ngos | jq .
+# Esperado: array com ONGs cadastradas (inclui dados seed: Anjos de Patas, Educa Mais)
 ```
 
 ### 6.3 Validar diretamente no PostgreSQL
@@ -204,6 +210,9 @@ kubectl exec -it $(kubectl get pods -n togglemaster -l app=postgres \
 
 ## 7. Testar Donation Service (PostgreSQL + OCI Queue)
 
+O donation-service gerencia doacoes. Campos obrigatorios: `ngo_id`, `amount`, `donor_name`.
+Cada doacao e salva no PostgreSQL e publicada na OCI Queue (se configurada).
+
 ### 7.1 Criar uma Doacao
 
 ```bash
@@ -214,6 +223,7 @@ curl -X POST http://$LB_IP/donations/donations \
     "amount": 150.00,
     "donor_name": "Doador Teste"
   }' | jq .
+# Esperado: HTTP 201 com JSON contendo id, ngo_id, amount, donor_name, status, created_at
 ```
 
 ### 7.2 Listar Doacoes
@@ -247,9 +257,18 @@ oci queue messages get-messages \
 kubectl logs -n togglemaster -l app=donation-service --tail=50 | grep -i "queue\|mensagem\|OCI"
 ```
 
+> **Nota:** Se OCI_QUEUE_ID nao estiver configurado, o donation-service funciona normalmente
+> sem enviar mensagens para a fila (modo degradado).
+
 ---
 
 ## 8. Testar Volunteer Service (OCI NoSQL)
+
+O volunteer-service registra voluntarios no OCI NoSQL.
+Campos obrigatorios: `name`, `email`, `ngo_id`.
+
+> **Nota:** Se o OCI NoSQL nao estiver configurado (Instance Principal ou config file),
+> o servico inicia em modo degradado: `/health` retorna OK, endpoints NoSQL retornam 503.
 
 ### 8.1 Registrar um Voluntario
 
@@ -261,6 +280,8 @@ curl -X POST http://$LB_IP/volunteers/volunteers \
     "email": "voluntario@solidarytech.com",
     "ngo_id": "1"
   }' | jq .
+# Esperado: HTTP 201 com JSON contendo id, name, email, ngo_id, registered_at
+# Ou HTTP 503 se NoSQL nao estiver configurado
 ```
 
 ### 8.2 Listar Voluntarios por ONG
@@ -273,7 +294,7 @@ curl -s http://$LB_IP/volunteers/volunteers/1 | jq .
 
 ```bash
 # Consultar tabela NoSQL via OCI CLI
-COMPARTMENT_ID="ocid1.compartment.oc1..aaaaaaaanehxovyxoaobjbxqhbgdcubarphs5xuptwok4gbcpepxov75obpq"
+COMPARTMENT_ID=$(terraform -chdir=terraform output -raw compartment_id 2>/dev/null || echo "SEU_COMPARTMENT_ID")
 
 oci nosql query execute \
   --compartment-id "$COMPARTMENT_ID" \
@@ -339,9 +360,25 @@ kubectl get secret -n monitoring prometheus-stack-grafana \
 
 > A senha padrao do Helm chart kube-prometheus-stack e `prom-operator`.
 
-### 10.2 Dashboards Disponiveis
+### 10.2 Datasources Configurados
 
-1. **Custom Dashboard (SolidaryTech)**
+O Grafana tem 2 datasources:
+
+| Datasource | Tipo | URL | Default |
+|------------|------|-----|---------|
+| Prometheus | prometheus | `http://prometheus-stack-kube-prom-prometheus.monitoring:9090` | Sim |
+| Loki | loki | `http://loki-stack.monitoring:3100` | Nao |
+
+Verifique em: **Grafana > Configuration > Data Sources**
+
+Se houver datasource duplicado ou com erro, verifique os ConfigMaps:
+```bash
+kubectl get configmap -n monitoring -l grafana_datasource=1
+```
+
+### 10.3 Dashboards Disponiveis
+
+1. **Custom Dashboard (SolidaryTech)** — criado via Terraform ConfigMap
    - CPU Usage por namespace
    - Memory Usage por namespace
    - Network Traffic Rate (pods togglemaster)
@@ -349,10 +386,12 @@ kubectl get secret -n monitoring prometheus-stack-grafana \
    - Redis Memory e Commands/s
    - Pod Restarts
 
-2. **Kubernetes / Compute Resources**
-   - Dashboards padrao do kube-prometheus-stack
+2. **Kubernetes / Compute Resources** — dashboards padrao do kube-prometheus-stack
+   - Cluster, Namespace, Workload, Pod views
 
-### 10.3 Alertas Configurados
+Para acessar: **Grafana > Dashboards > Browse** ou pesquisar "SolidaryTech"
+
+### 10.4 Alertas Configurados
 
 | Alerta | Severidade | Condicao |
 |--------|-----------|----------|
@@ -363,34 +402,65 @@ kubectl get secret -n monitoring prometheus-stack-grafana \
 
 Alertas sao enviados para o **Discord** via webhook configurado no Alertmanager.
 
-### 10.4 Validar Prometheus e AlertManager
+### 10.5 Validar Prometheus
 
 ```bash
-# Port-forward do Prometheus
+# Verificar targets ativos no Prometheus
 kubectl port-forward -n monitoring svc/prometheus-stack-kube-prom-prometheus 9090:9090 &
+# Acessar http://localhost:9090/targets — todos devem estar UP
 
-# Acessar http://localhost:9090/alerts
-# Verificar se os alertas togglemaster estao listados
+# Verificar alertas
+# Acessar http://localhost:9090/alerts — deve listar os alertas togglemaster
 
-# Port-forward do AlertManager
-kubectl port-forward -n monitoring svc/prometheus-stack-kube-prom-alertmanager 9093:9093 &
-
-# Acessar http://localhost:9093
-# Verificar receivers configurados (discord)
+# Matar port-forward
+kill %1
 ```
 
-### 10.5 Testar Alerta (simular falha)
+### 10.6 Validar AlertManager
+
+```bash
+kubectl port-forward -n monitoring svc/prometheus-stack-kube-prom-alertmanager 9093:9093 &
+# Acessar http://localhost:9093
+# Menu > Status > verificar receivers (discord configurado)
+kill %1
+```
+
+### 10.7 Testar Alerta (simular falha)
 
 ```bash
 # Escalar donation-service para 0 replicas (simula PodNotReady)
 kubectl scale deployment donation-service -n togglemaster --replicas=0
 
 # Aguardar ~5 minutos e verificar:
-# 1. Alerta PodNotReady no Grafana > Alerting
+# 1. Alerta PodNotReady no Grafana > Alerting > Alert Rules
 # 2. Notificacao no canal Discord
 
 # Restaurar
 kubectl scale deployment donation-service -n togglemaster --replicas=1
+```
+
+### 10.8 Validar Redis Exporter
+
+```bash
+# Verificar se o redis-exporter esta rodando
+kubectl get pods -n monitoring -l app=prometheus-redis-exporter
+
+# No Grafana, usar PromQL:
+#   redis_up
+#   redis_memory_used_bytes
+#   rate(redis_commands_processed_total[5m])
+```
+
+### 10.9 Validar ServiceMonitors
+
+```bash
+# Listar ServiceMonitors
+kubectl get servicemonitor -n monitoring
+
+# Esperado:
+#   nginx-ingress-controller   — metricas do Ingress NGINX
+#   solidarytech-services      — metricas /health dos servicos
+#   prometheus-redis-exporter  — metricas do Redis
 ```
 
 ---
@@ -414,6 +484,9 @@ kubectl scale deployment donation-service -n togglemaster --replicas=1
 # Apenas erros
 {namespace="togglemaster"} |= "error"
 
+# Logs do ngo-service com PostgreSQL
+{namespace="togglemaster", app="ngo-service"} |= "PostgreSQL"
+
 # Logs do volunteer-service com OCI NoSQL
 {namespace="togglemaster", app="volunteer-service"} |= "NoSQL"
 
@@ -424,31 +497,64 @@ kubectl scale deployment donation-service -n togglemaster --replicas=1
 ### 11.2 Verificar Promtail (agente de coleta)
 
 ```bash
-# Verificar pods do promtail
-kubectl get pods -n monitoring -l app=promtail
+# Verificar pods do promtail (DaemonSet — 1 por node)
+kubectl get pods -n monitoring -l app.kubernetes.io/name=promtail
 
 # Verificar logs do promtail
-kubectl logs -n monitoring -l app=promtail --tail=20
+kubectl logs -n monitoring -l app.kubernetes.io/name=promtail --tail=20
+
+# Verificar se promtail esta enviando para Loki
+kubectl logs -n monitoring -l app.kubernetes.io/name=promtail --tail=50 | grep -i "level=info"
+```
+
+### 11.3 Testar ingestion de logs
+
+```bash
+# Gerar logs nos servicos fazendo requests
+for i in $(seq 1 5); do
+  curl -s http://$LB_IP/ngos/health > /dev/null
+  curl -s http://$LB_IP/donations/health > /dev/null
+  curl -s http://$LB_IP/volunteers/health > /dev/null
+done
+
+# No Grafana Explore, consultar:
+#   {namespace="togglemaster"} | json | line_format "{{.message}}"
+# Os logs devem aparecer em 10-30 segundos
 ```
 
 ---
 
 ## 12. Monitoramento — New Relic (APM)
 
-### 12.1 Verificar Integracao
-
 Os servicos enviam telemetria via OpenTelemetry (OTLP) para o New Relic.
 
-```bash
-# Verificar variaveis OTEL nos pods
-kubectl get pods -n togglemaster -l app=ngo-service \
-  -o jsonpath='{.items[0].spec.containers[0].env}' | jq .
+> **Pre-requisito:** A secret `NEW_RELIC_LICENSE_KEY` deve estar configurada no GitHub
+> (Settings > Secrets and variables > Actions). Sem ela, os servicos funcionam
+> normalmente mas sem enviar telemetria (o OTel Collector nao sera instalado).
 
-# Verificar se o OTel Collector esta rodando (se newrelic_license_key foi configurada)
+### 12.1 Verificar se o OTel Collector esta rodando
+
+```bash
+# O OTel Collector so e instalado se newrelic_license_key for configurada no Terraform
 kubectl get pods -n monitoring -l app.kubernetes.io/name=opentelemetry-collector
+
+# Se nao existir, verificar se a variavel foi configurada:
+# No terraform/envs/dev.tfvars, verificar newrelic_license_key
 ```
 
-### 12.2 Gerar Traces
+### 12.2 Verificar configuracao OTEL nos servicos
+
+```bash
+# Verificar variaveis OTEL do ngo-service
+kubectl get pods -n togglemaster -l app=ngo-service \
+  -o jsonpath='{.items[0].spec.containers[0].env}' | jq '.[] | select(.name | startswith("OTEL"))'
+
+# Campos esperados:
+#   OTEL_SERVICE_NAME: ngo-service
+#   OTEL_EXPORTER_OTLP_ENDPOINT: https://otlp.nr-data.net
+```
+
+### 12.3 Gerar Traces
 
 ```bash
 # Fazer requests para gerar traces distribuidos
@@ -463,16 +569,21 @@ done
 echo "Aguarde 1-2 minutos e verifique no New Relic"
 ```
 
-### 12.3 Verificar no Console New Relic
+### 12.4 Verificar no Console New Relic
 
 1. Acesse [one.newrelic.com](https://one.newrelic.com)
 2. Va em **APM & Services**
 3. Procure os servicos: `ngo-service`, `donation-service`, `volunteer-service`
 4. Verifique:
+   - **Summary** — visao geral de throughput, latencia, error rate
    - **Distributed Traces** — rastreamento das requests
    - **Errors** — erros capturados
-   - **Metrics** — latencia, throughput
-   - **Logs** — logs estruturados
+   - **Metrics** — latencia, throughput, Apdex
+   - **Logs** — logs estruturados (se configurado)
+
+> **Nota:** Se a licenca New Relic nao estiver configurada, os logs dos servicos
+> mostrarao `Failed to export logs to otlp.nr-data.net, error code: StatusCode.PERMISSION_DENIED`.
+> Isso e esperado e nao afeta o funcionamento dos servicos.
 
 ---
 
@@ -480,11 +591,17 @@ echo "Aguarde 1-2 minutos e verifique no New Relic"
 
 O ArgoCD sincroniza automaticamente os manifests K8s do repositorio com o cluster.
 
+### 13.1 Acessar ArgoCD
+
 ```bash
-# Obter IP do ArgoCD Server
+# Obter IP do ArgoCD Server (LoadBalancer)
 ARGOCD_IP=$(kubectl get svc -n argocd argocd-server \
   -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
 echo "ArgoCD: http://$ARGOCD_IP"
+
+# Se nao tiver External IP, usar port-forward:
+kubectl port-forward -n argocd svc/argocd-server 8080:80 &
+echo "ArgoCD: http://localhost:8080"
 
 # Credenciais padrao:
 #   Usuario: admin
@@ -493,15 +610,60 @@ kubectl -n argocd get secret argocd-initial-admin-secret \
   -o jsonpath='{.data.password}' | base64 -d; echo
 ```
 
-### Aplicacoes no ArgoCD
+### 13.2 Aplicacoes Configuradas
 
-| App | Source | Namespace |
-|-----|--------|-----------|
-| ngo-service | `ngo-service/k8s` | togglemaster |
-| donation-service | `donation-service/k8s` | togglemaster |
-| volunteer-service | `volunteer-service/k8s` | togglemaster |
+| App | Source Path | Namespace | Sync Policy |
+|-----|------------|-----------|-------------|
+| ngo-service | `ngo-service/k8s` | togglemaster | Automated (prune + selfHeal) |
+| donation-service | `donation-service/k8s` | togglemaster | Automated (prune + selfHeal) |
+| volunteer-service | `volunteer-service/k8s` | togglemaster | Automated (prune + selfHeal) |
 
-Verifique que todas estao **Synced** e **Healthy** na UI do ArgoCD.
+Todas as apps apontam para o branch `main` do repositorio.
+
+### 13.3 Verificar status via CLI
+
+```bash
+# Instalar argocd CLI (opcional)
+kubectl -n argocd get applications
+
+# Ou via kubectl
+kubectl get applications -n argocd -o custom-columns=\
+NAME:.metadata.name,\
+SYNC:.status.sync.status,\
+HEALTH:.status.health.status
+```
+
+### 13.4 Verificar na UI do ArgoCD
+
+1. Acesse o ArgoCD (secao 13.1)
+2. Na dashboard, verifique que todas as 3 aplicacoes mostram:
+   - **Sync Status:** `Synced` (verde)
+   - **Health Status:** `Healthy` (coracao verde)
+3. Clique em cada app para ver a arvore de recursos (Deployment, Service, Secret)
+
+### 13.5 Testar GitOps (sync automatico)
+
+```bash
+# Qualquer alteracao em ngo-service/k8s/, donation-service/k8s/ ou
+# volunteer-service/k8s/ no branch main sera automaticamente aplicada
+# pelo ArgoCD no cluster.
+
+# Para forcar um sync manual:
+kubectl -n argocd patch application ngo-service \
+  --type merge -p '{"operation":{"sync":{"revision":"HEAD"}}}'
+
+# Ou na UI: clicar no botao "Sync" da aplicacao
+```
+
+### 13.6 Verificar Auto-Heal
+
+```bash
+# Deletar um pod manualmente — ArgoCD deve recriar
+kubectl delete pod -n togglemaster -l app=ngo-service
+
+# Verificar no ArgoCD UI ou via kubectl que o pod foi recriado
+kubectl get pods -n togglemaster -l app=ngo-service -w
+```
 
 ---
 
@@ -540,19 +702,19 @@ echo ""
 echo "--- 3. CRUD: Criar ONG ---"
 curl -s -X POST http://$LB_IP/ngos/ngos \
   -H "Content-Type: application/json" \
-  -d '{"name":"Validacao Hackathon","description":"Teste completo","contact_email":"validacao@hackathon.com"}' | jq -r '.id // "ERRO"'
+  -d '{"name":"Validacao Hackathon","email":"validacao@hackathon.com","cause":"Tecnologia","city":"Sao Paulo"}' | jq -r '.id // .error // "ERRO"'
 
 echo ""
 echo "--- 4. CRUD: Criar Doacao ---"
 curl -s -X POST http://$LB_IP/donations/donations \
   -H "Content-Type: application/json" \
-  -d '{"ngo_id":1,"amount":100.00,"donor_name":"Validacao Hackathon"}' | jq -r '.id // "ERRO"'
+  -d '{"ngo_id":1,"amount":100.00,"donor_name":"Validacao Hackathon"}' | jq -r '.id // .error // "ERRO"'
 
 echo ""
 echo "--- 5. CRUD: Criar Voluntario ---"
 curl -s -X POST http://$LB_IP/volunteers/volunteers \
   -H "Content-Type: application/json" \
-  -d '{"name":"Validacao Hackathon","email":"vol@hackathon.com","ngo_id":"1"}' | jq -r '.id // "ERRO"'
+  -d '{"name":"Validacao Hackathon","email":"vol@hackathon.com","ngo_id":"1"}' | jq -r '.id // .error // "ERRO"'
 
 echo ""
 echo "--- 6. Monitoring ---"
@@ -564,12 +726,22 @@ echo "   Grafana:   http://${GRAFANA_IP:-NAO_DISPONIVEL}"
 echo "   ArgoCD:    http://${ARGOCD_IP:-NAO_DISPONIVEL}"
 echo "   New Relic: https://one.newrelic.com"
 
+# Grafana senha
+echo "   Grafana senha: $(kubectl get secret -n monitoring prometheus-stack-grafana \
+  -o jsonpath='{.data.admin-password}' 2>/dev/null | base64 -d 2>/dev/null || echo 'prom-operator')"
+
+# ArgoCD senha
+echo "   ArgoCD senha:  $(kubectl -n argocd get secret argocd-initial-admin-secret \
+  -o jsonpath='{.data.password}' 2>/dev/null | base64 -d 2>/dev/null || echo 'NAO_DISPONIVEL')"
+
 echo ""
 echo "--- 7. Kubernetes Resources ---"
 echo "   Nodes:"
 kubectl get nodes --no-headers | awk '{printf "      %-20s %s\n", $1, $2}'
-echo "   Namespaces com pods:"
-kubectl get pods --all-namespaces --no-headers 2>/dev/null | awk '{print $1}' | sort -u | awk '{print "      " $0}'
+echo "   Pods monitoring:"
+kubectl get pods -n monitoring --no-headers 2>/dev/null | awk '{printf "      %-50s %s\n", $1, $3}'
+echo "   Apps ArgoCD:"
+kubectl get applications -n argocd --no-headers 2>/dev/null | awk '{printf "      %-25s Sync: %-10s Health: %s\n", $1, $2, $3}'
 
 echo ""
 echo "=== Validacao completa ==="
@@ -624,6 +796,8 @@ kubectl describe pod -n togglemaster <pod-name>
 # - PostgreSQL nao esta pronto (initContainer deveria esperar)
 # - Variavel de ambiente incorreta (DATABASE_URL, OCI_QUEUE_ID, etc.)
 # - Imagem com erro de build
+# - Flask/Werkzeug incompatibilidade (verificar ImportError nos logs)
+# - psycopg2 SCRAM auth (verificar "SCRAM authentication requires libpq version 10")
 ```
 
 ### Erro de conexao com PostgreSQL
@@ -632,6 +806,11 @@ kubectl describe pod -n togglemaster <pod-name>
 # Verificar se o postgres esta acessivel
 kubectl exec -it $(kubectl get pods -n togglemaster -l app=postgres \
   -o jsonpath='{.items[0].metadata.name}') -n togglemaster -- pg_isready
+
+# Verificar se os databases existem
+kubectl exec -it $(kubectl get pods -n togglemaster -l app=postgres \
+  -o jsonpath='{.items[0].metadata.name}') -n togglemaster \
+  -- psql -U togglemaster_user -d postgres -c "SELECT datname FROM pg_database;"
 
 # Verificar DATABASE_URL do servico
 kubectl get secret ngo-service-secret -n togglemaster \
@@ -664,8 +843,8 @@ kubectl logs -n togglemaster -l app=donation-service --tail=100 | grep -i "queue
 kubectl exec -it $(kubectl get pods -n togglemaster -l app=volunteer-service \
   -o jsonpath='{.items[0].metadata.name}') -n togglemaster -- env | grep OCI
 
-# Verificar logs
-kubectl logs -n togglemaster -l app=volunteer-service --tail=100 | grep -i "nosql\|erro\|error"
+# Verificar logs — "modo degradado" e esperado se NoSQL nao estiver configurado
+kubectl logs -n togglemaster -l app=volunteer-service --tail=100 | grep -i "nosql\|erro\|error\|degradado"
 ```
 
 ### Node com DiskPressure ou NotReady
@@ -680,3 +859,52 @@ kubectl describe node $(kubectl get nodes -o jsonpath='{.items[0].metadata.name}
 # Aguardar node voltar a Ready:
 kubectl get nodes -w
 ```
+
+### Grafana sem dados / datasource com erro
+
+```bash
+# Verificar ConfigMaps de datasource
+kubectl get configmap -n monitoring -l grafana_datasource=1
+
+# Verificar se Prometheus esta coletando metricas
+kubectl port-forward -n monitoring svc/prometheus-stack-kube-prom-prometheus 9090:9090 &
+# Acessar http://localhost:9090/targets — verificar targets UP
+kill %1
+
+# Verificar se Loki esta recebendo logs
+kubectl port-forward -n monitoring svc/loki-stack 3100:3100 &
+curl -s http://localhost:3100/ready
+# Esperado: "ready"
+kill %1
+```
+
+### Terraform 409-NAMESPACE_CONFLICT (OCIR repos)
+
+Se o `terraform apply` falhar com `409-NAMESPACE_CONFLICT, Repository already exists`:
+
+```bash
+# Os repos ja existem no OCI mas nao estao no Terraform state.
+# Importar manualmente:
+cd terraform
+terraform init
+
+# Listar repos existentes
+oci artifacts container repository list \
+  --compartment-id <COMPARTMENT_ID> --all \
+  --query "data.items[].{name:\"display-name\",id:id}" --output table
+
+# Importar cada repo
+terraform import -var-file=envs/dev.tfvars \
+  "module.ocir.oci_artifacts_container_repository.ngo_service" <REPO_OCID>
+terraform import -var-file=envs/dev.tfvars \
+  "module.ocir.oci_artifacts_container_repository.donation_service" <REPO_OCID>
+terraform import -var-file=envs/dev.tfvars \
+  "module.ocir.oci_artifacts_container_repository.volunteer_service" <REPO_OCID>
+
+# Depois reexecutar
+terraform plan -var-file=envs/dev.tfvars
+terraform apply -var-file=envs/dev.tfvars
+```
+
+> **Nota:** O workflow `terraform-apply.yml` faz import automatico dos repos existentes.
+> Execute via GitHub Actions (workflow_dispatch) para evitar esse problema.
