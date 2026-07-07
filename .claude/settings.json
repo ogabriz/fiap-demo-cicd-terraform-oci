@@ -5,7 +5,10 @@
       "Bash(oci --version)",
       "Bash(command -v terraform)",
       "Bash(terraform version *)",
-      "WebFetch(domain:raw.githubusercontent.com)"
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(curl -s https://raw.githubusercontent.com/oracle/terraform-provider-oci/master/website/docs/d/artifacts_container_repositories.html.markdown)",
+      "Bash(curl -s \"https://api.github.com/search/code?q=container_repository_collection+repo:oracle/terraform-provider-oci\")",
+      "Bash(curl -s \"https://raw.githubusercontent.com/oracle/terraform-provider-oci/master/internal/service/artifacts/artifacts_container_repositories_data_source.go\")"
     ]
   }
 }
