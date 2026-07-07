@@ -49,3 +49,40 @@ module "observability" {
 
   depends_on = [module.oke]
 }
+
+# ---------------------------------------------------------------------------
+# One-off import — the OCIR state was lost/recreated but the repos still
+# exist in OCI, so `apply` was hitting 409-NAMESPACE_CONFLICT trying to
+# recreate them. These bring the existing repos back under Terraform
+# management instead of creating duplicates. Safe to delete this block once
+# `terraform state list` shows the three module.ocir resources as tracked.
+# ---------------------------------------------------------------------------
+data "oci_artifacts_container_repositories" "existing_ngo_service" {
+  compartment_id = var.compartment_id
+  display_name   = "hackathon-repo/ngo-service"
+}
+
+data "oci_artifacts_container_repositories" "existing_donation_service" {
+  compartment_id = var.compartment_id
+  display_name   = "hackathon-repo/donation-service"
+}
+
+data "oci_artifacts_container_repositories" "existing_volunteer_service" {
+  compartment_id = var.compartment_id
+  display_name   = "hackathon-repo/volunteer-service"
+}
+
+import {
+  to = module.ocir.oci_artifacts_container_repository.ngo_service
+  id = data.oci_artifacts_container_repositories.existing_ngo_service.container_repository_collection[0].id
+}
+
+import {
+  to = module.ocir.oci_artifacts_container_repository.donation_service
+  id = data.oci_artifacts_container_repositories.existing_donation_service.container_repository_collection[0].id
+}
+
+import {
+  to = module.ocir.oci_artifacts_container_repository.volunteer_service
+  id = data.oci_artifacts_container_repositories.existing_volunteer_service.container_repository_collection[0].id
+}

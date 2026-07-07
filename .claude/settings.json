@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(command -v oci)",
+      "Bash(oci --version)",
+      "Bash(command -v terraform)",
+      "Bash(terraform version *)",
+      "WebFetch(domain:raw.githubusercontent.com)"
+    ]
+  }
+}
